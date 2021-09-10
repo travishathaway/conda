@@ -6,7 +6,6 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from logging import getLogger
 
-from conda.common.compat import PY2, on_win
 from conda.common.url import add_username_and_password, is_ip_address, is_ipv6_address, is_url, \
     maybe_add_auth
 
@@ -50,19 +49,14 @@ def test_is_url():
 
 
 def test_is_ipv6_address():
-    if not (on_win and PY2):
-        assert is_ipv6_address('::1') is True
-        assert is_ipv6_address('2001:db8:85a3::370:7334') is True
-        assert is_ipv6_address('1234:'*7+'1234') is True
-
+    assert is_ipv6_address('::1') is True
+    assert is_ipv6_address('2001:db8:85a3::370:7334') is True
+    assert is_ipv6_address('1234:'*7+'1234') is True
     assert is_ipv6_address('192.168.10.10') is False
     assert is_ipv6_address('1234:' * 8 + '1234') is False
 
 
 def test_is_ip_address():
     assert is_ip_address('192.168.10.10') is True
-
-    if not (on_win and PY2):
-        assert is_ip_address('::1') is True
-
+    assert is_ip_address('::1') is True
     assert is_ip_address('www.google.com') is False
