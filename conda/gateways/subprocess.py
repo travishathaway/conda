@@ -18,7 +18,6 @@ from .. import ACTIVE_SUBPROCESSES
 from ..auxlib.ish import dals
 from ..common.compat import (
     ensure_binary,
-    string_types,
     encode_arguments,
     encode_environment,
     isiterable,
@@ -81,14 +80,14 @@ def subprocess_call(command, env=None, path=None, stdin=None, raise_on_error=Tru
     cwd = sys.prefix if path is None else abspath(path)
     if not isiterable(command):
         command = shlex_split_unicode(command)
-    command_str = command if isinstance(command, string_types) else ' '.join(command)
+    command_str = command if isinstance(command, str) else ' '.join(command)
     log.debug("executing>> %s", command_str)
 
     if capture_output:
         p = Popen(encode_arguments(command), cwd=cwd, stdin=PIPE, stdout=PIPE, stderr=PIPE,
                   env=env)
         ACTIVE_SUBPROCESSES.add(p)
-        stdin = ensure_binary(stdin) if isinstance(stdin, string_types) else stdin
+        stdin = ensure_binary(stdin) if isinstance(stdin, str) else stdin
 
         if live_stream:
             stdout, stderr = _realtime_output_for_subprocess(p)

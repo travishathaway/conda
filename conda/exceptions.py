@@ -21,7 +21,7 @@ from .auxlib.ish import dals
 from .auxlib.type_coercion import boolify
 from ._vendor.toolz import groupby
 from .base.constants import COMPATIBLE_SHELLS, PathConflict, SafetyChecks
-from .common.compat import ensure_text_type, input, iteritems, iterkeys, on_win, string_types
+from .common.compat import ensure_text_type, input, iteritems, iterkeys, on_win
 from .common.io import dashlist, timeout
 from .common.signals import get_signal_name
 
@@ -549,7 +549,7 @@ class CondaHTTPError(CondaError):
         url = maybe_unquote(url)
         if isinstance(elapsed_time, timedelta):
             elapsed_time = text_type(elapsed_time).split(':', 1)[-1]
-        if isinstance(reason, string_types):
+        if isinstance(reason, str):
             reason = reason.upper()
         super(CondaHTTPError, self).__init__(message, url=url, status_code=status_code,
                                              reason=reason, elapsed_time=elapsed_time,
