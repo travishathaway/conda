@@ -15,7 +15,7 @@ from textwrap import dedent
 from traceback import format_exception, format_exception_only
 import getpass
 
-from . import CondaError, CondaExitZero, CondaMultiError, text_type
+from . import CondaError, CondaExitZero, CondaMultiError
 from .auxlib.entity import EntityEncoder
 from .auxlib.ish import dals
 from .auxlib.type_coercion import boolify
@@ -230,7 +230,7 @@ class SharedLinkPathClobberError(ClobberError):
         super(SharedLinkPathClobberError, self).__init__(
             message, context.path_conflict,
             target_path=target_path,
-            incompatible_packages=', '.join(text_type(d) for d in incompatible_package_dists),
+            incompatible_packages=', '.join(str(d) for d in incompatible_package_dists),
         )
 
 
@@ -368,7 +368,7 @@ class DryRunExit(CondaExitZero):
 
 class CondaSystemExit(CondaExitZero, SystemExit):
     def __init__(self, *args):
-        msg = ' '.join(text_type(arg) for arg in self.args)
+        msg = ' '.join(str(arg) for arg in self.args)
         super(CondaSystemExit, self).__init__(msg)
 
 
@@ -548,7 +548,7 @@ class CondaHTTPError(CondaError):
 
         url = maybe_unquote(url)
         if isinstance(elapsed_time, timedelta):
-            elapsed_time = text_type(elapsed_time).split(':', 1)[-1]
+            elapsed_time = str(elapsed_time).split(':', 1)[-1]
         if isinstance(reason, str):
             reason = reason.upper()
         super(CondaHTTPError, self).__init__(message, url=url, status_code=status_code,
@@ -571,7 +571,7 @@ class PackagesNotFoundError(CondaError):
 
     def __init__(self, packages, channel_urls=()):
 
-        format_list = lambda iterable: '  - ' + '\n  - '.join(text_type(x) for x in iterable)
+        format_list = lambda iterable: '  - ' + '\n  - '.join(str(x) for x in iterable)
 
         if channel_urls:
             message = dals("""
@@ -1171,14 +1171,14 @@ class ExceptionHandler(object):
                 info_dict = {
                     'error': repr(info_e),
                     'exception_name': info_e.__class__.__name__,
-                    'exception_type': text_type(exc_val.__class__),
+                    'exception_type': str(exc_val.__class__),
                     'traceback': info_traceback,
                 }
 
         error_report = {
             'error': repr(exc_val),
             'exception_name': exc_val.__class__.__name__,
-            'exception_type': text_type(exc_val.__class__),
+            'exception_type': str(exc_val.__class__),
             'command': command,
             'traceback': _format_exc(exc_val, exc_tb),
             'conda_info': info_dict,

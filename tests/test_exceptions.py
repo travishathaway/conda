@@ -11,7 +11,6 @@ import sys
 import os
 import getpass
 
-from conda import text_type
 from conda.auxlib.collection import AttrDict
 from conda.auxlib.ish import dals
 from conda.base.context import context, conda_tests_ctxt_mgmt_def_pol
@@ -56,7 +55,7 @@ class ExceptionTests(TestCase):
         assert not c.stderr
         assert json_obj['exception_type'] == "<class 'conda.exceptions.TooManyArgumentsError'>"
         assert json_obj['exception_name'] == 'TooManyArgumentsError'
-        assert json_obj['message'] == text_type(exc)
+        assert json_obj['message'] == str(exc)
         assert json_obj['error'] == repr(exc)
         assert json_obj['expected'] == 2
         assert json_obj['received'] == 5
@@ -81,7 +80,7 @@ class ExceptionTests(TestCase):
         assert not c.stderr
         assert json_obj['exception_type'] == "<class 'conda.exceptions.TooFewArgumentsError'>"
         assert json_obj['exception_name'] == 'TooFewArgumentsError'
-        assert json_obj['message'] == text_type(exc)
+        assert json_obj['message'] == str(exc)
         assert json_obj['error'] == repr(exc)
         assert json_obj['expected'] == 5
         assert json_obj['received'] == 2
@@ -170,7 +169,7 @@ class ExceptionTests(TestCase):
         assert not c.stderr
         assert json_obj['exception_type'] == "<class 'conda.exceptions.PathNotFoundError'>"
         assert json_obj['exception_name'] == 'PathNotFoundError'
-        assert json_obj['message'] == text_type(exc)
+        assert json_obj['message'] == str(exc)
         assert json_obj['error'] == repr(exc)
 
         with env_var("CONDA_JSON", "no", stack_callback=conda_tests_ctxt_mgmt_def_pol):
@@ -191,7 +190,7 @@ class ExceptionTests(TestCase):
         assert not c.stderr
         assert json_obj['exception_type'] == "<class 'conda.exceptions.DirectoryNotFoundError'>"
         assert json_obj['exception_name'] == 'DirectoryNotFoundError'
-        assert json_obj['message'] == text_type(exc)
+        assert json_obj['message'] == str(exc)
         assert json_obj['error'] == repr(exc)
         assert json_obj['path'] == "Groot"
 
@@ -216,7 +215,7 @@ class ExceptionTests(TestCase):
         assert not c.stderr
         assert json_obj['exception_type'] == "<class 'conda.exceptions.ChecksumMismatchError'>"
         assert json_obj['exception_name'] == 'ChecksumMismatchError'
-        assert json_obj['message'] == text_type(exc)
+        assert json_obj['message'] == str(exc)
         assert json_obj['error'] == repr(exc)
         assert json_obj['url'] == url
         assert json_obj['target_full_path'] == target_full_path
@@ -246,7 +245,7 @@ class ExceptionTests(TestCase):
         json_obj = json.loads(c.stdout)
         assert not c.stderr
         assert json_obj['exception_type'] == "<class 'conda.exceptions.PackagesNotFoundError'>"
-        assert json_obj['message'] == text_type(exc)
+        assert json_obj['message'] == str(exc)
         assert json_obj['error'] == repr(exc)
 
         with env_var("CONDA_JSON", "no", stack_callback=conda_tests_ctxt_mgmt_def_pol):
@@ -270,7 +269,7 @@ class ExceptionTests(TestCase):
         assert not c.stderr
         assert json_obj['exception_type'] == "<class 'conda.exceptions.CondaRevisionError'>"
         assert json_obj['exception_name'] == 'CondaRevisionError'
-        assert json_obj['message'] == text_type(exc)
+        assert json_obj['message'] == str(exc)
         assert json_obj['error'] == repr(exc)
 
         with env_var("CONDA_JSON", "no", stack_callback=conda_tests_ctxt_mgmt_def_pol):
@@ -292,7 +291,7 @@ class ExceptionTests(TestCase):
         assert not c.stderr
         assert json_obj['exception_type'] == "<class 'conda.exceptions.CondaKeyError'>"
         assert json_obj['exception_name'] == 'CondaKeyError'
-        assert json_obj['message'] == text_type(exc)
+        assert json_obj['message'] == str(exc)
         assert json_obj['error'] == repr(exc)
         assert json_obj['key'] == "Potato"
 
@@ -319,7 +318,7 @@ class ExceptionTests(TestCase):
             assert not c.stderr
             assert json_obj['exception_type'] == "<class 'conda.exceptions.CondaHTTPError'>"
             assert json_obj['exception_name'] == 'CondaHTTPError'
-            assert json_obj['message'] == text_type(exc)
+            assert json_obj['message'] == str(exc)
             assert json_obj['error'] == repr(exc)
             assert json_obj['url'] == url
             assert json_obj['status_code'] == status_code
@@ -349,7 +348,7 @@ class ExceptionTests(TestCase):
         json_obj = json.loads(c.stdout)
         assert not c.stderr
         assert json_obj['exception_type'] == "<class 'conda.exceptions.CommandNotFoundError'>"
-        assert json_obj['message'] == text_type(exc)
+        assert json_obj['message'] == str(exc)
         assert json_obj['error'] == repr(exc)
 
         with env_var("CONDA_JSON", "no", stack_callback=conda_tests_ctxt_mgmt_def_pol):
@@ -371,7 +370,7 @@ class ExceptionTests(TestCase):
         json_obj = json.loads(c.stdout)
         assert not c.stderr
         assert json_obj['exception_type'] == "<class 'conda.exceptions.CommandNotFoundError'>"
-        assert json_obj['message'] == text_type(exc)
+        assert json_obj['message'] == str(exc)
         assert json_obj['error'] == repr(exc)
 
         with env_var("CONDA_JSON", "no", stack_callback=conda_tests_ctxt_mgmt_def_pol):
@@ -512,7 +511,7 @@ class ExceptionTests(TestCase):
         assert not c.stderr
         assert json_obj['exception_type'] == "<class 'conda.exceptions.BinaryPrefixReplacementError'>"
         assert json_obj['exception_name'] == 'BinaryPrefixReplacementError'
-        assert json_obj['message'] == text_type(exc)
+        assert json_obj['message'] == str(exc)
         assert json_obj['error'] == repr(exc)
         assert json_obj['new_data_length'] == 1104
         assert json_obj['original_data_length'] == 1404

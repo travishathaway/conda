@@ -8,7 +8,6 @@ import os
 
 from .common import stdout_json
 from ..base.context import context
-from ..common.compat import text_type
 from ..core.prefix_data import PrefixData
 from ..gateways.connection.session import CONDA_SESSION_SCHEMES
 from ..gateways.disk.test import is_conda_environment
@@ -88,6 +87,6 @@ def execute(args, parser):
     if context.json:
         stdout_json(output)
     else:
-        print('\n'.join(map(text_type, output)))
+        print('\n'.join(map(str, output)))
 
     return exitcode
