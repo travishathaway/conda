@@ -9,7 +9,7 @@ from os.path import abspath, expanduser
 import re
 import socket
 
-from .compat import input, on_win
+from .compat import on_win
 from .path import split_filename, strip_pkg_extension
 from ..auxlib.decorators import memoize
 from .._vendor.urllib3.exceptions import LocationParseError
