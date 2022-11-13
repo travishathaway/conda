@@ -39,6 +39,7 @@ install_requires = [
     "ruamel.yaml >=0.11.14",
     "menuinst ; platform_system=='Windows'",
     "tqdm >=4",
+    "pydantic >=1.10",
 ]
 
 def package_files(*root_directories):
