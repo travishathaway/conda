@@ -58,9 +58,7 @@ class CondarcConfig(BaseModel):
     #              Channel Configuration               #
     ####################################################
 
-    channels: tuple[Union[str, dict[str, dict[str, str]]], ...] = Field(
-        alias="channel", default_factory=lambda: ("defaults",)
-    )
+    channels: tuple[Union[str, dict[str, dict[str, str]]], ...] = Field(default=("defaults",))
     """
     **aliases** -> channel
 
@@ -74,11 +72,11 @@ class CondarcConfig(BaseModel):
     The prepended url location to associate with channel names.
     """
 
-    default_channels: list[str] = Field(
-        default_factory=lambda: [
+    default_channels: tuple[str] = Field(
+        default=(
             "https://repo.anaconda.com/pkgs/main",
             "https://repo.anaconda.com/pkgs/r",
-        ]
+        )
     )
     """
     **env_var_string_delimiter** ->  ','
@@ -92,7 +90,7 @@ class CondarcConfig(BaseModel):
     Permit use of the --overide-channels command-line flag.
     """
 
-    whitelist_channels: list[str] = Field(default_factory=list)
+    whitelist_channels: tuple[str] = Field(default_factory=tuple)
     """
     **env_var_string_delimiter** ->  ','
 
@@ -103,9 +101,7 @@ class CondarcConfig(BaseModel):
     or left undefined, no channel exclusions will be enforced.
     """
 
-    custom_channels: dict[str, str] = Field(
-        default_factory=lambda: {"pkgs/pro": "https://repo.anaconda.com"}
-    )
+    custom_channels: dict[str, str] = Field(default={"pkgs/pro": "https://repo.anaconda.com"})
     """
     A map of key-value pairs where the key is a channel name and the value
     is a channel location. Channels defined here override the default
@@ -128,7 +124,7 @@ class CondarcConfig(BaseModel):
     channel urls.
     """
 
-    migrated_channel_aliases: list[str] = Field(default_factory=list)
+    migrated_channel_aliases: tuple[str] = Field(default_factory=tuple)
     """
     **env_var_string_delimiter** ->  ','
 
@@ -142,7 +138,7 @@ class CondarcConfig(BaseModel):
     is the previous location of the channel.
     """
 
-    add_anaconda_token: bool = Field(alias="add_binstar_token", default=True)
+    add_anaconda_token: bool = Field(default=True)
     """
     **aliases** -> add_binstar_token
 
@@ -166,9 +162,7 @@ class CondarcConfig(BaseModel):
     in conda 4.7.0.
     """
 
-    repodata_fns: list[str] = Field(
-        default_factory=lambda: ["current_repodata.json", "repodata.json"]
-    )
+    repodata_fns: tuple[str] = Field(default=("current_repodata.json", "repodata.json"))
     """
     **env_var_string_delimiter** ->  ','
 
@@ -197,7 +191,7 @@ class CondarcConfig(BaseModel):
     #            Basic Conda Configuration             #
     ####################################################
 
-    envs_dirs: list[str] = Field(alias="envs_path", default_factory=list)
+    envs_dirs: tuple[str] = Field(default_factory=tuple)
     """
     **aliases** -> envs_path
 
@@ -208,7 +202,7 @@ class CondarcConfig(BaseModel):
     the first writable location.
     """
 
-    pkgs_dirs: list[str] = Field(default_factory=list)
+    pkgs_dirs: tuple[str] = Field(default_factory=tuple)
     """
     **env_var_string_delimiter** ->  ','
 
@@ -231,7 +225,7 @@ class CondarcConfig(BaseModel):
     #              Network Configuration               #
     ####################################################
 
-    client_ssl_cert: str = Field(alias="client_cert", default=None)
+    client_ssl_cert: str = Field(default=None)
     """
     **aliases** -> client_cert
 
@@ -240,7 +234,7 @@ class CondarcConfig(BaseModel):
     client_ssl_cert for individual files.
     """
 
-    client_ssl_cert_key: str = Field(alias="client_cert_key", default=None)
+    client_ssl_cert_key: str = Field(default=None)
     """
     **aliases** -> client_cert_key
 
@@ -295,7 +289,7 @@ class CondarcConfig(BaseModel):
     the server to send a response.
     """
 
-    ssl_verify: bool = Field(alias="verify_ssl", default=True)
+    ssl_verify: bool = Field(default=True)
     """
     **aliases** -> verify_ssl
 
@@ -311,8 +305,8 @@ class CondarcConfig(BaseModel):
     #               Solver Configuration               #
     ####################################################
 
-    aggressive_update_packages: list[str] = Field(
-        default_factory=lambda: ["ca-certificates", "certifi", "openssl"]
+    aggressive_update_packages: tuple[str] = Field(
+        default=("ca-certificates", "certifi", "openssl")
     )
     """
     **env_var_string_delimiter** ->  ','
@@ -321,7 +315,7 @@ class CondarcConfig(BaseModel):
     latest possible version.
     """
 
-    auto_update_conda: bool = Field(alias="self_update", default=True)
+    auto_update_conda: bool = Field(default=True)
     """
     **aliases** -> self_update
 
@@ -343,14 +337,14 @@ class CondarcConfig(BaseModel):
     True or False. True is now an alias to 'flexible'.
     """
 
-    create_default_packages: list[str] = Field(default_factory=list)
+    create_default_packages: tuple[str] = Field(default_factory=tuple)
     """
     **env_var_string_delimiter** ->  ','
 
     Packages that are by default added to a newly created environments.
     """
 
-    disallowed_packages: list[str] = Field(alias="disallow", default_factory=list)
+    disallowed_packages: tuple[str] = Field(default_factory=tuple)
     """
     **aliases** -> disallow
 
@@ -367,7 +361,7 @@ class CondarcConfig(BaseModel):
     the environment.
     """
 
-    pinned_packages: list[str] = Field(default_factory=list)
+    pinned_packages: tuple[str] = Field(default_factory=tuple)
     """
     **env_var_string_delimiter** ->  '&'
 
@@ -381,7 +375,7 @@ class CondarcConfig(BaseModel):
     packages.
     """
 
-    track_features: list[str] = Field(default_factory=list)
+    track_features: tuple[str] = Field(default_factory=tuple)
     """
     **env_var_string_delimiter** -> ','
 
@@ -413,7 +407,7 @@ class CondarcConfig(BaseModel):
     recipe documentation).
     """
 
-    always_copy: bool = Field(alias="copy", default=False)
+    always_copy: bool = Field(default=False)
     """
     **aliases** -> copy
 
@@ -421,7 +415,7 @@ class CondarcConfig(BaseModel):
     install rather than hard-linked.
     """
 
-    always_softlink: bool = Field(alias="softlink", default=False)
+    always_softlink: bool = Field(default=False)
     """
     **aliases** -> softlink
 
@@ -521,14 +515,14 @@ class CondarcConfig(BaseModel):
     used in construction of the 'local' multichannel.
     """
 
-    anaconda_upload: bool = Field(alias="binstar_upload", default=False)
+    anaconda_upload: bool = Field(default=False)
     """
     **aliases** -> binstar_upload
 
     Automatically upload packages built with conda build to anaconda.org.
     """
 
-    conda_build: dict = Field(alias="conda-build", default_factory=dict)
+    conda_build: dict = Field(default_factory=dict)
     """
     **aliases** -> conda-build
 
@@ -539,7 +533,7 @@ class CondarcConfig(BaseModel):
     #  Output, Prompt, and Flow Control Configuration  #
     ####################################################
 
-    always_yes: bool = Field(alias="yes", default=False)
+    always_yes: bool = Field(default=False)
     """
     **aliases** -> yes
 
@@ -579,7 +573,7 @@ class CondarcConfig(BaseModel):
     method.
     """
 
-    json__: bool = Field(alias="json", default=False)
+    json__: bool = Field(default=False)
     """
     Ensure all output written to stdout is structured json.
     """
@@ -607,7 +601,7 @@ class CondarcConfig(BaseModel):
     Show channel URLs when displaying what is going to be downloaded.
     """
 
-    verbosity: int = Field(alias="verbose", default=0)
+    verbosity: int = Field(default=0)
     """
     **aliases** -> verbose
 
@@ -628,3 +622,22 @@ class CondarcConfig(BaseModel):
     higher this number, the longer the generation of the unsat hint will
     take. Defaults to 3.
     """
+
+    class Config:
+        fields = {
+            "channels": ("channels", "channel"),
+            "add_anaconda_token": ("add_anaconda_token", "add_binstar_token"),
+            "envs_dirs": ("envs_dirs", "envs_path"),
+            "client_ssl_cert": ("client_ssl_cert", "client_cert"),
+            "client_ssl_cert_key": ("client_ssl_cert_key", "client_cert_key"),
+            "ssl_verify": ("ssl_verify", "verify_ssl"),
+            "auto_update_conda": ("auto_update_conda", "self_update"),
+            "disallowed_packages": ("disallowed_packages", "disallow"),
+            "always_copy": ("always_copy", "copy"),
+            "always_softlink": ("always_softlink", "softlink"),
+            "anaconda_upload": ("anaconda_upload", "binstar_upload"),
+            "conda_build": ("conda_build", "conda-build"),
+            "always_yes": ("always_yes", "yes"),
+            "json__": ("json__", "json"),
+            "verbosity": ("verbosity", "verbose"),
+        }

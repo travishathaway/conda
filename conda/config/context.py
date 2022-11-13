@@ -25,6 +25,10 @@ class Context:
     #: abstract base class)
     _config_sources: Sequence[ConfigSource]
 
+    #: SystemConfiguration object that holds specific information about the operating system
+    #: and other environment specific things (e.g. prefix, conda environment name)
+    _system_config: SystemConfiguration
+
     def __init__(self, system_config: SystemConfiguration, config_sources: Sequence[ConfigSource]):
         """
         Creates the object responsible for gathering all application configuration.
@@ -44,6 +48,7 @@ class Context:
         importance. The first variable definition we find is returned. We check the
         SystemConfiguration object last for variable definitions.
         """
+        # This ensures we avoid special dunder attributes like ``__name__``
         if item.startswith("__"):
             return super().__getattribute__(item)
 
@@ -77,7 +82,10 @@ def create_context(args_obj: Namespace | None = None) -> Context:
     args_obj = args_obj or Namespace()
     cli_config_source = CLIConfigSource(args_obj)
 
-    return Context(system_config, (env_config_source, cli_config_source, config_file_sources))
+    # This tuple reflects the order of importance for parsing configuration parameters
+    config_sources = (env_config_source, cli_config_source, config_file_sources)
+
+    return Context(system_config, config_sources)
 
 
 context = create_context()
