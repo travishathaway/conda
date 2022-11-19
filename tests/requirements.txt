@@ -23,6 +23,7 @@ pluggy
 pkginfo
 pycosat
 pycrypto
+pydantic>=1.10
 pyflakes
 pytest
 pytest-cov

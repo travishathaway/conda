@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from argparse import Namespace
+from pathlib import Path
 from typing import Sequence, Any
 
 from .main import ConfigSource, CLIConfigSource, EnvConfigSource, ConfigFileSource, ConfigFileTypes
@@ -67,17 +68,25 @@ class Context:
         raise AttributeError(f"'{self.__class__.__name__}' has no attribute '{item}'")
 
 
-def create_context(args_obj: Namespace | None = None) -> Context:
+def create_context(
+    args_obj: Namespace | None = None, extra_config_files: tuple[Path, ...] = None
+) -> Context:
     """
     This function is responsible for constructing our Context object. It first collects
     configuration from a variety of sources and then uses the Context object to combine
     them all.
 
     :param args_obj: Namespace object that is created after parsing CLI arguments
+    :param extra_config_files: Extra files, other than standard system locations, we want
+                               to include
     """
-    system_config = SystemConfiguration()
+    system_config = SystemConfiguration()  # TODO: should we create this here?
+    config_files = system_config.valid_condarc_files
 
-    config_file_sources = ConfigFileSource(ConfigFileTypes.yaml, system_config.valid_condarc_files)
+    if extra_config_files is not None:
+        config_files += extra_config_files
+
+    config_file_sources = ConfigFileSource(ConfigFileTypes.yaml, config_files)
     env_config_source = EnvConfigSource()
     args_obj = args_obj or Namespace()
     cli_config_source = CLIConfigSource(args_obj)
@@ -86,6 +95,3 @@ def create_context(args_obj: Namespace | None = None) -> Context:
     config_sources = (env_config_source, cli_config_source, config_file_sources)
 
     return Context(system_config, config_sources)
-
-
-context = create_context()
