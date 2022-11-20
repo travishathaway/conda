@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Sequence, Any
 
-from .main import ConfigSource, CLIConfigSource, EnvConfigSource, ConfigFileSource, ConfigFileTypes
+from .main import ConfigSource, CLIConfigSource, ConfigFileSource, ConfigFileTypes
 from .system import SystemConfiguration
 
 
@@ -138,11 +138,10 @@ def create_context(
         config_files += extra_config_files
 
     config_file_sources = ConfigFileSource(ConfigFileTypes.yaml, config_files)
-    env_config_source = EnvConfigSource()
     args_obj = args_obj or Namespace()
     cli_config_source = CLIConfigSource(args_obj)
 
     # This tuple reflects the order of importance for parsing configuration parameters
-    config_sources = (env_config_source, cli_config_source, config_file_sources)
+    config_sources = (cli_config_source, config_file_sources)
 
     return Context(system_config, config_sources)

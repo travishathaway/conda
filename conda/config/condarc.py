@@ -7,13 +7,31 @@ from functools import reduce
 from pathlib import Path
 from typing import Literal, Sequence, Callable, Any, Union
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseSettings, Field, ValidationError
 
 from ..exceptions import CondaError
 
 from .errors import format_validation_error, format_all_validation_errors
 
 logger = logging.getLogger(__name__)
+
+FIELD_ALIASES = {
+    "channel": "channels",
+    "add_binstar_token": "add_anaconda_token",
+    "envs_path": "envs_dirs",
+    "client_cert": "client_ssl_cert",
+    "client_cert_key": "client_ssl_cert_key",
+    "verify_ssl": "ssl_verify",
+    "self_update": "auto_update_conda",
+    "disallow": "disallowed_packages",
+    "copy": "always_copy",
+    "softlink": "always_softlink",
+    "binstar_upload": "anaconda_upload",
+    "conda-build": "conda_build",
+    "yes": "always_yes",
+    "json": "json__",
+    "verbose": "verbosity",
+}
 
 
 def merge_condarc(obj_one: CondarcConfig, obj_two: CondarcConfig) -> CondarcConfig:
@@ -27,6 +45,20 @@ def merge_condarc(obj_one: CondarcConfig, obj_two: CondarcConfig) -> CondarcConf
     dict_one.update(dict_two)
 
     return CondarcConfig(**dict_one)
+
+
+def remap_aliases(config: dict[str, Any]) -> None:
+    """
+    This function exists because pydantic does not currently support multiple alias
+    values. To get over this, we remap the values ourselves before passing this to our
+    pydantic model. This should be removed an upgraded once V2 is released. More information
+    about multiple aliases can be found here:
+
+    - https://pydantic-docs.helpmanual.io/blog/pydantic-v2/#more-powerful-aliases
+    """
+    for alias, field_name in FIELD_ALIASES.items():
+        if alias in config:
+            config[field_name] = config.pop(alias)
 
 
 def get_condarc_obj(
@@ -45,6 +77,8 @@ def get_condarc_obj(
     validation_errors: list[str] = []
 
     for path, yaml_config in yaml_data:
+        remap_aliases(yaml_config)
+
         try:
             config = CondarcConfig(**yaml_config)
             condarc_configs.append(config)
@@ -57,7 +91,7 @@ def get_condarc_obj(
     return reduce(merge_condarc, condarc_configs)
 
 
-class CondarcConfig(BaseModel):
+class CondarcConfig(BaseSettings):
     """
     Contains all variables which come from the condarc file
     """
@@ -589,9 +623,9 @@ class CondarcConfig(BaseModel):
     verify_threads: int = Field(
         default=0,
         description="""
-    Threads to use when performing the transaction verification step.
-    When not set, defaults to 1.
-    """,
+        Threads to use when performing the transaction verification step.
+        When not set, defaults to 1.
+        """,
     )
 
     execute_threads: int = Field(
@@ -764,21 +798,34 @@ class CondarcConfig(BaseModel):
     )
 
     class Config:
-        # These are the all the field aliases
-        fields = {
-            "channels": ("channels", "channel"),
-            "add_anaconda_token": ("add_anaconda_token", "add_binstar_token"),
-            "envs_dirs": ("envs_dirs", "envs_path"),
-            "client_ssl_cert": ("client_ssl_cert", "client_cert"),
-            "client_ssl_cert_key": ("client_ssl_cert_key", "client_cert_key"),
-            "ssl_verify": ("ssl_verify", "verify_ssl"),
-            "auto_update_conda": ("auto_update_conda", "self_update"),
-            "disallowed_packages": ("disallowed_packages", "disallow"),
-            "always_copy": ("always_copy", "copy"),
-            "always_softlink": ("always_softlink", "softlink"),
-            "anaconda_upload": ("anaconda_upload", "binstar_upload"),
-            "conda_build": ("conda_build", "conda-build"),
-            "always_yes": ("always_yes", "yes"),
-            "json__": ("json__", "json"),
-            "verbosity": ("verbosity", "verbose"),
+        env_prefix = "CONDA_"
+        env_nested_delimiter = ","  # Default delimiter, others are specified below
+
+        # TODO: not happy with having to define this set. It would be nice to be
+        # able to define multiple delimiters or better, define this directly on the
+        # field itself.
+        comma_delimited_fields: set[str] = {
+            "channels",
+            "default_channels",
+            "allowlist_channels",
+            "migrated_channel_aliases",
+            "repodata_fns",
+            "pkgs_dirs",
+            "aggressive_update_packages",
+            "create_default_packages",
+            "track_features",
         }
+
+        colon_delimited_field = "envs_dirs"
+
+        amp_delimited_fields: set[str] = {"disallowed_packages", "pinned_packages"}
+
+        @classmethod
+        def parse_env_var(cls, field_name: str, raw_val: str) -> Any:
+            if field_name in cls.comma_delimited_fields:
+                return raw_val.split(",")
+            elif field_name in cls.amp_delimited_fields:
+                return raw_val.split("&")
+            elif field_name == cls.colon_delimited_field:
+                return raw_val.split(":")
+            return cls.json_loads(raw_val)

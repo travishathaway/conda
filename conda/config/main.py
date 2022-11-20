@@ -4,7 +4,6 @@ import abc
 import enum
 import json
 import logging
-import os
 from argparse import Namespace
 from pathlib import Path
 from typing import Any, Callable, Sequence
@@ -127,39 +126,3 @@ class CLIConfigSource(ConfigSource):
 
     def has_parameter(self, name) -> bool:
         return hasattr(self.args_obj, name)
-
-
-class EnvConfigSource(ConfigSource):
-    COMMA_SEPARATED_PARAMS: set[str] = {
-        "channels",
-        "default_channels",
-        "whitelist_channels",
-        "migrated_channel_aliases",
-        "repodata_fns",
-        "pkgs_dirs",
-        "aggressive_update_packages",
-        "create_default_packages",
-        "track_features",
-    }
-
-    COLON_SEPARATED_PARAMS: set[str] = {"envs_dirs", "envs_path", ""}
-
-    AMP_SEPARATED_PARAMS: set[str] = {"disallowed_packages", "pinned_packages"}
-
-    ENV_VAR_PREFIX = "CONDA_"
-
-    def get_parameter(self, name) -> Any:
-        value = os.getenv(f"{self.ENV_VAR_PREFIX}{name.upper()}")
-
-        if value is not None:
-            if name in self.COMMA_SEPARATED_PARAMS:
-                return value.split(",")
-            elif name in self.COLON_SEPARATED_PARAMS:
-                return value.split(":")
-            elif name in self.AMP_SEPARATED_PARAMS:
-                return value.split("&")
-
-        return value
-
-    def has_parameter(self, name) -> bool:
-        return name in os.environ
