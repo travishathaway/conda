@@ -11,7 +11,8 @@ def test_happy_path(tmp_path, base_condarc):
     condarc_file.write_text(base_condarc)
     context = create_context(extra_config_files=(condarc_file,))
 
-    assert context.channels == ("defaults", {"http://localhost": {"fetch_type": "blah"}})
+    assert context.channels == ("defaults", "http://localhost")
+    assert context.channel_parameters == ("defaults", {"http://localhost": {"fetch_type": "blah"}})
 
     assert context.always_yes is True
     assert context.changeps1 is False

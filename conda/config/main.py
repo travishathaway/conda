@@ -95,6 +95,8 @@ class ConfigFileSource(ConfigSource):
         self.data = self._merge(config_files)
 
     def _merge(self, config_files: Sequence[Path]) -> CondarcConfig:
+        if len(config_files) == 0:
+            return CondarcConfig()
         return get_condarc_obj(config_files, self.file_parser)
 
     def get_parameter(self, name) -> Any:
