@@ -5,13 +5,13 @@ from __future__ import annotations
 import logging
 from functools import reduce
 from pathlib import Path
-from typing import Literal, Sequence, Callable, Any, Union
+from typing import Literal, Any, Union
 
 from pydantic import BaseSettings, Field, ValidationError
 
 from ..exceptions import CondaError
 
-from .errors import format_validation_error, format_all_validation_errors
+from .errors import format_validation_error, format_all_validation_errors, CONFIG_ERROR_PREFIX
 
 logger = logging.getLogger(__name__)
 
@@ -33,18 +33,31 @@ FIELD_ALIASES = {
     "verbose": "verbosity",
 }
 
+#: Name of the environment variable which stores path to config file
+#: that will override current configuration settings.
+CONDARC_ENV_VAR_NAME = "CONDARC_NEW"
+
 
 def merge_condarc(obj_one: CondarcConfig, obj_two: CondarcConfig) -> CondarcConfig:
     """
     Provided two CondaRC objects, return one where right (obj_two) overrides properties
     on left (obj_one).
     """
-    dict_one = {fld: getattr(obj_one, fld) for fld in obj_one.__annotations__}
-    dict_two = {fld: getattr(obj_two, fld) for fld in obj_two.__annotations__}
+    merged_values = {}
 
-    dict_one.update(dict_two)
+    for fld, value in obj_one.dict().items():
+        if isinstance(value, tuple):
+            merged_values[fld] = tuple(set(value + getattr(obj_two, fld, tuple())))
+        elif isinstance(value, dict):
+            value.update(getattr(obj_two, fld))
+            merged_values[fld] = value
+        else:
+            merged_values[fld] = value if value is not None else getattr(obj_two, fld)
 
-    return CondarcConfig(**dict_one)
+    # dict_one = {fld: getattr(obj_one, fld) for fld in obj_one.__annotations__}
+    # dict_two = {fld: getattr(obj_two, fld) for fld in obj_two.__annotations__}
+
+    return CondarcConfig(**merged_values)
 
 
 def remap_aliases(config: dict[str, Any]) -> None:
@@ -61,26 +74,33 @@ def remap_aliases(config: dict[str, Any]) -> None:
             config[field_name] = config.pop(alias)
 
 
-def get_condarc_obj(
-    paths: Sequence[Path], parser_func: Callable[[Path], dict[str, Any]]
-) -> CondarcConfig:
-    """
-    From a list of valid paths to condarc files, perform the desired merge operation
-    and return a single CondaRC object.
+def parse_single_config(path: Path, config: Any):
+    ...
 
-    TODO: this function needs to be able to respect the !final directive found in comments.
-    """
-    # Load a single CondarcConfig object per file in our paths
-    yaml_data = ((path, parser_func(path)) for path in paths)
 
+def get_condarc_obj(config_data: tuple[tuple[Path, dict], ...]) -> CondarcConfig:
+    """
+    From a tuple of (Path, dict) objects where dict is the parsed data, perform the
+    desired merge operation and return a single CondaRC object.
+
+    :raises CondaError: Thrown if we run across validation errors while parsing
+
+    TODO: this function needs to be able to respect the !final, !top and !bottom directives
+          found in comments.
+    """
     condarc_configs: list[CondarcConfig] = []
     validation_errors: list[str] = []
 
-    for path, yaml_config in yaml_data:
-        remap_aliases(yaml_config)
+    for path, single_config in config_data:
+        # If this is a string value, we know we didn't parse it correctly
+        if isinstance(single_config, str):
+            validation_errors.append(f"{CONFIG_ERROR_PREFIX}: {path}")
+            continue
+
+        remap_aliases(single_config)
 
         try:
-            config = CondarcConfig(**yaml_config)
+            config = CondarcConfig(**single_config)
             condarc_configs.append(config)
         except ValidationError as exc:
             validation_errors.append(format_validation_error(exc, path))
@@ -164,7 +184,7 @@ class CondarcConfig(BaseSettings):
         """,
     )
 
-    custom_multichannels: dict[str, str] = Field(
+    custom_multichannels: dict[str, tuple[str, ...]] = Field(
         default_factory=dict,
         description="""
         A multichannel is a metachannel composed of multiple channels. The two
@@ -797,35 +817,35 @@ class CondarcConfig(BaseSettings):
         """,
     )
 
-    class Config:
-        env_prefix = "CONDA_"
-        env_nested_delimiter = ","  # Default delimiter, others are specified below
+    # class Config:
+    #     env_prefix = "CONDA_"
+    #     env_nested_delimiter = ","  # Default delimiter, others are specified below
 
-        # TODO: not happy with having to define this set. It would be nice to be
-        # able to define multiple delimiters or better, define this directly on the
-        # field itself.
-        comma_delimited_fields: set[str] = {
-            "channels",
-            "default_channels",
-            "allowlist_channels",
-            "migrated_channel_aliases",
-            "repodata_fns",
-            "pkgs_dirs",
-            "aggressive_update_packages",
-            "create_default_packages",
-            "track_features",
-        }
+    #     # TODO: not happy with having to define this set. It would be nice to be
+    #     # able to define multiple delimiters or better, define this directly on the
+    #     # field itself.
+    #     comma_delimited_fields: set[str] = {
+    #         "channels",
+    #         "default_channels",
+    #         "allowlist_channels",
+    #         "migrated_channel_aliases",
+    #         "repodata_fns",
+    #         "pkgs_dirs",
+    #         "aggressive_update_packages",
+    #         "create_default_packages",
+    #         "track_features",
+    #     }
 
-        colon_delimited_field = "envs_dirs"
+    #     colon_delimited_field = "envs_dirs"
 
-        amp_delimited_fields: set[str] = {"disallowed_packages", "pinned_packages"}
+    #     amp_delimited_fields: set[str] = {"disallowed_packages", "pinned_packages"}
 
-        @classmethod
-        def parse_env_var(cls, field_name: str, raw_val: str) -> Any:
-            if field_name in cls.comma_delimited_fields:
-                return raw_val.split(",")
-            elif field_name in cls.amp_delimited_fields:
-                return raw_val.split("&")
-            elif field_name == cls.colon_delimited_field:
-                return raw_val.split(":")
-            return cls.json_loads(raw_val)
+    #     @classmethod
+    #     def parse_env_var(cls, field_name: str, raw_val: str) -> Any:
+    #         if field_name in cls.comma_delimited_fields:
+    #             return raw_val.split(",")
+    #         elif field_name in cls.amp_delimited_fields:
+    #             return raw_val.split("&")
+    #         elif field_name == cls.colon_delimited_field:
+    #             return raw_val.split(":")
+    #         return cls.json_loads(raw_val)

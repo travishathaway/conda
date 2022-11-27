@@ -12,6 +12,8 @@ CONDARC_PARSE_ERROR_SUGGESTION = (
     "https://docs.conda.io/projects/conda/en/latest/configuration.html"
 )
 
+CONFIG_ERROR_PREFIX = "Unable to parse configuration file"
+
 
 def format_validation_error(exc: ValidationError, path: Path) -> str:
     """
@@ -34,7 +36,7 @@ def format_validation_error(exc: ValidationError, path: Path) -> str:
             error_str.append(f"'{given}'\n")
 
     return "".join(
-        (f"Unable to parse the following config file: {path}\n", *error_str),
+        (f"{CONFIG_ERROR_PREFIX}: {path}\n", *error_str),
     )
 
 

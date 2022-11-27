@@ -4,6 +4,7 @@ import abc
 import enum
 import json
 import logging
+import os
 from argparse import Namespace
 from pathlib import Path
 from typing import Any, Callable, Sequence
@@ -66,7 +67,7 @@ class ConfigSource(abc.ABC):
         ...
 
 
-class ConfigFileSource(ConfigSource):
+class FileConfigSource(ConfigSource):
     #: Type of file to parse
     file_type: ConfigFileTypes
 
@@ -91,18 +92,59 @@ class ConfigFileSource(ConfigSource):
         self.file_type = file_type
         self.file_parser = get_config_file_parser(file_type)
         self.config_files = config_files
-        self.data = self._merge(config_files)
+
+        # Expensive operation that loads all the different configuration files using
+        # ``self.file_parser`` function that was deduced from the ``file_type``
+        self.raw_data = tuple((path, self.file_parser(path)) for path in self.config_files)
+
+        self.parsed_data = self._merge(self.config_files)
 
     def _merge(self, config_files: Sequence[Path]) -> CondarcConfig:
         if len(config_files) == 0:
             return CondarcConfig()
-        return get_condarc_obj(config_files, self.file_parser)
+        return get_condarc_obj(self.raw_data)
 
     def get_parameter(self, name) -> Any:
-        return getattr(self.data, name)
+        return getattr(self.parsed_data, name)
 
     def has_parameter(self, name) -> bool:
-        return hasattr(self.data, name)
+        return hasattr(self.parsed_data, name)
+
+
+class EnvConfigSource(ConfigSource):
+    COMMA_SEPARATED_PARAMS: set[str] = {
+        "channels",
+        "default_channels",
+        "whitelist_channels",
+        "migrated_channel_aliases",
+        "repodata_fns",
+        "pkgs_dirs",
+        "aggressive_update_packages",
+        "create_default_packages",
+        "track_features",
+    }
+
+    COLON_SEPARATED_PARAMS: set[str] = {"envs_dirs", "envs_path", ""}
+
+    AMP_SEPARATED_PARAMS: set[str] = {"disallowed_packages", "pinned_packages"}
+
+    ENV_VAR_PREFIX = "CONDA_"
+
+    def get_parameter(self, name) -> Any:
+        value = os.getenv(f"{self.ENV_VAR_PREFIX}{name.upper()}")
+
+        if value is not None:
+            if name in self.COMMA_SEPARATED_PARAMS:
+                return value.split(",")
+            elif name in self.COLON_SEPARATED_PARAMS:
+                return value.split(":")
+            elif name in self.AMP_SEPARATED_PARAMS:
+                return value.split("&")
+
+        return value
+
+    def has_parameter(self, name) -> bool:
+        return f"{self.ENV_VAR_PREFIX}{name.upper()}" in os.environ
 
 
 class CLIConfigSource(ConfigSource):
@@ -122,7 +164,7 @@ class CLIConfigSource(ConfigSource):
         self.args_obj = args_obj
 
     def get_parameter(self, name) -> Any:
-        return getattr(self.args_obj, name)
+        return getattr(self.args_obj, name, None)
 
     def has_parameter(self, name) -> bool:
         return hasattr(self.args_obj, name)

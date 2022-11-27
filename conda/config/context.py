@@ -2,14 +2,28 @@
 # SPDX-License-Identifier: BSD-3-Clause
 from __future__ import annotations
 
+import os
+import pathlib
 import warnings
 from argparse import Namespace
+from logging import getLogger
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Sequence, Any
 
-from .main import ConfigSource, CLIConfigSource, ConfigFileSource, ConfigFileTypes
+from ..auxlib.ish import dals
+from .._vendor.boltons.setutils import IndexedSet
+from ..base.context import DEFAULTS_CHANNEL_NAME
+
+from .main import ConfigSource, CLIConfigSource, FileConfigSource, ConfigFileTypes, EnvConfigSource
 from .system import SystemConfiguration
+from .condarc import CONDARC_ENV_VAR_NAME
+
+#: Logger used to give warnings and errors
+logger = getLogger(__name__)
+
+#: Name of the local channel
+LOCAL_CHANNEL_NAME = "local"
 
 
 class Context:
@@ -22,6 +36,15 @@ class Context:
     - CLI arguments/options
     - Configuration files (i.e. ``condarc`` files)
     - System level configuration provided by the SystemConfiguration object
+
+    Basically, it's your one-stop-shop for all things configurable! I'm still not
+    sure that this is a good pattern to use. Here are some outstanding questions:
+
+    - Will smashing all of these different sources together be confusing to future
+      maintainers?
+    - Is easy enough to understand the resolution order of configuration variables?
+    - What if I just want direct access to the arguments object? How does that work?
+
     """
 
     #: Sequence holding all the different "ConfigSource" objects (i.e. classes that implement this
@@ -32,11 +55,22 @@ class Context:
     #: and other environment specific things (e.g. prefix, conda environment name)
     _system_config: SystemConfiguration
 
-    def __init__(self, system_config: SystemConfiguration, config_sources: Sequence[ConfigSource]):
+    #: Determines the order of importance for our configuration sources
+    CONFIG_PARSE_ORDER = ("cli", "env", "file")
+
+    def __init__(
+        self,
+        system_config: SystemConfiguration,
+        file_config_source: FileConfigSource = None,
+        env_config_source: EnvConfigSource = None,
+        cli_config_source: CLIConfigSource = None,
+    ):
         """
         Creates the object responsible for gathering all application configuration.
         """
-        self._config_sources = config_sources
+        self._file_config_source = file_config_source
+        self._env_config_source = env_config_source
+        self._cli_config_source = cli_config_source
         self._system_config = system_config
 
     def __getattr__(self, item) -> Any:
@@ -53,11 +87,28 @@ class Context:
         Properties and attributes directly defined on the Context object will be returned
         before anything else.
         """
-        for config in self._config_sources:
-            has_param = config.has_parameter(item)
-            if has_param:
-                value = config.get_parameter(item)
-                return value
+        # Used for collecting values which merge sequence and mapping types
+        config_value_seq = ()
+        config_value_map = {}
+
+        for source in self.CONFIG_PARSE_ORDER:
+            config_source = super().__getattribute__(f"_{source}_config_source")
+            if config_source is not None:
+                has_param = config_source.has_parameter(item)
+                if has_param:
+                    value = config_source.get_parameter(item)
+                    if isinstance(value, tuple) or isinstance(value, list):
+                        config_value_seq += tuple(value)
+                    elif isinstance(value, dict):
+                        config_value_map.update(value)
+                    else:
+                        return value
+
+        # Return the first non-empty config_value_* variable.
+        if config_value_seq:
+            return config_value_seq
+        elif config_value_map:
+            return config_value_map
 
         if hasattr(self._system_config, item):
             return getattr(self._system_config, item)
@@ -102,7 +153,45 @@ class Context:
 
     @property
     def channels(self):
-        return self._get_channel_names()
+        """
+        This is a special property that uses quite a bit of logic to retrieve the
+        correct set of channels.
+        """
+        local_add = (LOCAL_CHANNEL_NAME,) if self.use_local else ()
+        override_channels = self._cli_config_source.get_parameter("override_channels")
+        channel = self._cli_config_source.get_parameter("channel")
+
+        if override_channels:
+            if not self.override_channels_enabled:
+                from ..exceptions import OperationNotAllowed
+
+                raise OperationNotAllowed(
+                    dals(
+                        """
+                    Overriding channels has been disabled.
+                """
+                    )
+                )
+            elif not channel:
+                from ..exceptions import ArgumentError
+
+                raise ArgumentError(
+                    "At least one -c / --channel flag must be supplied when using "
+                    "--override-channels."
+                )
+            else:
+                return tuple(IndexedSet((*local_add, *channel)))
+
+        if channel:
+            channel_in_config_files = any(
+                "channels" in data for _, data in self._file_config_source.raw_data
+            )
+            if not channel_in_config_files:
+                return tuple(IndexedSet((*local_add, *channel, DEFAULTS_CHANNEL_NAME)))
+
+            return tuple(IndexedSet(tuple(channel) + self._get_channel_names() + local_add))
+
+        return tuple(IndexedSet(self._get_channel_names() + local_add))
 
     @property
     def channel_parameters(self):
@@ -119,6 +208,42 @@ class Context:
         return self.__getattr__("solver")
 
 
+def get_condarc_env_file(conda_env_var_name: str = CONDARC_ENV_VAR_NAME) -> Path | None:
+    """
+    We try to read the environment variable stored where CONDA_ENV_VAR_NAME specifies
+    and then return a tuple Path object.
+    """
+    condarc_env_file = os.getenv(conda_env_var_name)
+
+    if condarc_env_file is not None:
+        condarc_file = pathlib.Path(condarc_env_file)
+
+        if condarc_file.is_file():
+            return condarc_file
+        else:
+            logger.warning(f'Unable to open "{CONDARC_ENV_VAR_NAME}" file: {condarc_file}')
+
+
+def get_file_config_source(
+    system_config: SystemConfiguration, extra_config_files: tuple[Path, ...] = None
+) -> FileConfigSource:
+    """
+    Using a variety of sources, retrieves all locations where configuration files are stored
+    and combines them into a single ``FileConfigSource`` object.
+    """
+    config_files = system_config.valid_condarc_files
+
+    if extra_config_files is not None:
+        config_files += extra_config_files
+
+    condarc_env_file = get_condarc_env_file()
+
+    if condarc_env_file:
+        config_files += (condarc_env_file,)
+
+    return FileConfigSource(ConfigFileTypes.yaml, config_files)
+
+
 def create_context(
     args_obj: Namespace | None = None, extra_config_files: tuple[Path, ...] = None
 ) -> Context:
@@ -131,17 +256,16 @@ def create_context(
     :param extra_config_files: Extra files, other than standard system locations, we want
                                to include; these override values from previous files.
     """
-    system_config = SystemConfiguration()  # TODO: should we create this here?
-    config_files = system_config.valid_condarc_files
+    system_config = SystemConfiguration()
+    file_config_source = get_file_config_source(system_config, extra_config_files)
 
-    if extra_config_files is not None:
-        config_files += extra_config_files
-
-    config_file_sources = ConfigFileSource(ConfigFileTypes.yaml, config_files)
     args_obj = args_obj or Namespace()
+    env_config_source = EnvConfigSource()
     cli_config_source = CLIConfigSource(args_obj)
 
-    # This tuple reflects the order of importance for parsing configuration parameters
-    config_sources = (cli_config_source, config_file_sources)
-
-    return Context(system_config, config_sources)
+    return Context(
+        system_config,
+        file_config_source=file_config_source,
+        env_config_source=env_config_source,
+        cli_config_source=cli_config_source,
+    )
