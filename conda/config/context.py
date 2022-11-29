@@ -11,9 +11,9 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Sequence, Any
 
-from ..auxlib.ish import dals
 from .._vendor.boltons.setutils import IndexedSet
 from ..base.context import DEFAULTS_CHANNEL_NAME
+from ..exceptions import ArgumentError, OperationNotAllowed
 
 from .main import ConfigSource, CLIConfigSource, FileConfigSource, ConfigFileTypes, EnvConfigSource
 from .system import SystemConfiguration
@@ -86,6 +86,10 @@ class Context:
 
         Properties and attributes directly defined on the Context object will be returned
         before anything else.
+
+        One nasty side-effect this method has is that it gets called when we run across
+        an AttributeError. This can lead to some weird, unexpected behavior in the class'
+        methods.
         """
         # Used for collecting values which merge sequence and mapping types
         config_value_seq = ()
@@ -163,18 +167,9 @@ class Context:
 
         if override_channels:
             if not self.override_channels_enabled:
-                from ..exceptions import OperationNotAllowed
+                raise OperationNotAllowed("Overriding channels has been disabled.")
 
-                raise OperationNotAllowed(
-                    dals(
-                        """
-                    Overriding channels has been disabled.
-                """
-                    )
-                )
             elif not channel:
-                from ..exceptions import ArgumentError
-
                 raise ArgumentError(
                     "At least one -c / --channel flag must be supplied when using "
                     "--override-channels."
