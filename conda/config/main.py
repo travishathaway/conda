@@ -1,5 +1,7 @@
 # Copyright (C) 2012 Anaconda, Inc
 # SPDX-License-Identifier: BSD-3-Clause
+from __future__ import annotations
+
 import abc
 import enum
 import json
@@ -7,7 +9,7 @@ import logging
 import os
 from argparse import Namespace
 from pathlib import Path
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Sequence, Dict
 
 import ruamel.yaml as yaml
 
@@ -47,7 +49,7 @@ def read_json_file(path: Path) -> dict[str, Any]:
         logger.error(exc)
 
 
-ConfigFileParserFunc = Callable[[Path], dict[str, Any]]
+ConfigFileParserFunc = Callable[[Path], Dict[str, Any]]
 
 
 def get_config_file_parser(file_type: ConfigFileTypes) -> ConfigFileParserFunc:
