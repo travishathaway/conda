@@ -42,6 +42,12 @@ def merge_condarc(obj_one: CondarcConfig, obj_two: CondarcConfig) -> CondarcConf
     """
     Provided two CondaRC objects, return one where right (obj_two) overrides properties
     on left (obj_one).
+
+    Depending on the type of object we receive, we use a different merging mechanism:
+
+    - tuple: concatenate and ensure the values are unique; this needs to be updated as
+      as it currently destroys order in which these settings are defined, which is important.
+    - dict: TBD!
     """
     merged_values = {}
 
@@ -53,9 +59,6 @@ def merge_condarc(obj_one: CondarcConfig, obj_two: CondarcConfig) -> CondarcConf
             merged_values[fld] = value
         else:
             merged_values[fld] = value if value is not None else getattr(obj_two, fld)
-
-    # dict_one = {fld: getattr(obj_one, fld) for fld in obj_one.__annotations__}
-    # dict_two = {fld: getattr(obj_two, fld) for fld in obj_two.__annotations__}
 
     return CondarcConfig(**merged_values)
 
