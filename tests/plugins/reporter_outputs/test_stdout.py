@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 from pytest import CaptureFixture
 
-from conda.plugins.output_handlers.stdout import stdout_io
+from conda.plugins.reporter_outputs.stdout import stdout_io
 
 
 def test_stdout_render(capsys: CaptureFixture):
     """
-    Tests the StdoutHandler OutputHandler class
+    Tests the stdout reporter output function
     """
     test_str = "a string value"
 

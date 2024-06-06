@@ -5,84 +5,84 @@ from __future__ import annotations
 import pytest
 
 from conda import plugins
-from conda.plugins.reporter_handlers import plugins as default_plugins
-from conda.plugins.types import CondaReporterHandler, ReporterHandlerBase
+from conda.plugins.reporter_backends import plugins as default_plugins
+from conda.plugins.types import CondaReporterBackend, ReporterRendererBase
 
 
-class DummyReporterHandler(ReporterHandlerBase):
-    """Dummy reporter handler class only for tests"""
+class DummyReporterRenderer(ReporterRendererBase):
+    """Dummy reporter renderer only for tests"""
 
-    def detail_view(self, data: dict[str, str | int | bool], **kwargs) -> str:
+    def table(self, data: dict[str, str | int | bool], **kwargs) -> str:
         return str(data)
 
-    def envs_list(self, data, **kwargs) -> str:
+    def list(self, data, **kwargs) -> str:
         return str(data)
 
 
-class ReporterHandlerPlugin:
+class ReporterBackendPlugin:
     @plugins.hookimpl
-    def conda_reporter_handlers(self):
-        yield CondaReporterHandler(
+    def conda_reporter_backends(self):
+        yield CondaReporterBackend(
             name="dummy",
-            description="Dummy reporter handler meant for testing",
-            handler=DummyReporterHandler(),
+            description="Dummy reporter backend meant for testing",
+            renderer=DummyReporterRenderer,
         )
 
 
 @pytest.fixture()
-def dummy_reporter_handler_plugin(plugin_manager):
-    reporter_handler_plugin = ReporterHandlerPlugin()
-    plugin_manager.register(reporter_handler_plugin)
+def dummy_reporter_backend_plugin(plugin_manager):
+    reporter_backend_plugin = ReporterBackendPlugin()
+    plugin_manager.register(reporter_backend_plugin)
 
     return plugin_manager
 
 
 @pytest.fixture()
-def default_reporter_handler_plugin(plugin_manager):
+def default_reporter_backend_plugin(plugin_manager):
     for reporter_plugin in default_plugins:
         plugin_manager.register(reporter_plugin)
 
     return plugin_manager
 
 
-def test_dummy_reporter_handler_is_registered(dummy_reporter_handler_plugin):
+def test_dummy_reporter_backend_is_registered(dummy_reporter_backend_plugin):
     """
-    Ensures that our dummy reporter handler has been registered
+    Ensures that our dummy reporter backend has been registered
     """
-    reporter_handlers = dummy_reporter_handler_plugin.get_reporter_handlers()
+    reporter_backends = dummy_reporter_backend_plugin.get_reporter_backends()
 
-    assert "dummy" in {handler.name for handler in reporter_handlers}
+    assert "dummy" in {backend.name for backend in reporter_backends}
 
 
-def test_default_reporter_handlers_are_registered(default_reporter_handler_plugin):
+def test_default_reporter_backends_are_registered(default_reporter_backend_plugin):
     """
-    Ensures that our default reporter handlers have been registered
+    Ensures that our default reporter backends have been registered
     """
-    reporter_handlers = default_reporter_handler_plugin.get_reporter_handlers()
+    reporter_backends = default_reporter_backend_plugin.get_reporter_backends()
 
     expected_defaults = {"console", "json"}
-    actual_defaults = {handler.name for handler in reporter_handlers}
+    actual_defaults = {backend.name for backend in reporter_backends}
 
     assert expected_defaults == actual_defaults
 
 
 @pytest.mark.parametrize(
-    "method,handler,argument,expected",
+    "style,backend,data,expected",
     [
-        ("render", "console", "test", "test"),
-        ("render", "json", "test", '"test"'),
-        ("detail_view", "console", {"test": "something"}, "\n test : something\n\n"),
-        ("detail_view", "json", {"test": "something"}, '{\n  "test": "something"\n}'),
+        ("default", "console", "test", "test"),
+        ("default", "json", "test", '"test"'),
+        ("table", "console", {"test": "something"}, "\n test : something\n\n"),
+        ("table", "json", {"test": "something"}, '{\n  "test": "something"\n}'),
     ],
 )
-def test_console_reporter_handler(
-    default_reporter_handler_plugin, method, handler, argument, expected
+def test_console_reporter_backend(
+    default_reporter_backend_plugin, style, backend, data, expected
 ):
     """
-    Ensures that the console reporter handler behaves as expected
+    Ensures that the console reporter backend behaves as expected
     """
-    console = default_reporter_handler_plugin.get_reporter_handler(handler)
+    reporter_backend = default_reporter_backend_plugin.get_reporter_backend(backend)
+    renderer = getattr(reporter_backend.renderer(), style)
+    result = renderer(data)
 
-    output = getattr(console.handler, method)(argument)
-
-    assert output == expected
+    assert result == expected

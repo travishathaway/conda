@@ -20,12 +20,12 @@ if TYPE_CHECKING:
     from .types import (
         CondaAuthHandler,
         CondaHealthCheck,
-        CondaOutputHandler,
         CondaPostCommand,
         CondaPostSolve,
         CondaPreCommand,
         CondaPreSolve,
-        CondaReporterHandler,
+        CondaReporterBackend,
+        CondaReporterOutput,
         CondaSetting,
         CondaSolver,
         CondaSubcommand,
@@ -336,11 +336,12 @@ class CondaSpecs:
         """
 
     @_hookspec
-    def conda_reporter_handlers(self) -> Iterable[CondaReporterHandler]:
+    def conda_reporter_backends(self) -> Iterable[CondaReporterBackend]:
         """
-        Register new reporter handler
+        Register new reporter backend with its renderer
 
-        The example below defines a reporter handler that uses the ``pprint`` module in Python.
+        The example below defines an reporter backend that uses the ``pprint`` module in Python
+        as the renderer.
 
         **Example:**
 
@@ -349,31 +350,31 @@ class CondaSpecs:
            from pprint import pformat
 
            from conda import plugins
-           from conda.plugins.types import CondaReporterHandler, ReporterHandlerBase
+           from conda.plugins.types import CondaOutputRenderer, OutputRendererBase
 
 
-           class PprintReporter(ReporterHandlerBase):
+           class PprintRenderer(OutputRendererBase):
 
-               def detail_view(self, data):
-                   return pformat(data)
+               def detail(self, data, **kwargs):
+                   return pformat(data, **kwargs)
 
 
            @plugins.hookimpl
-           def conda_reporter_handler():
-               yield CondaReporterHandler(
+           def conda_reporter_backends():
+               yield CondaReporterBackend(
                    name="pprint",
-                   description="Reporter handler based off of the pprint module",
-                   handler=PprintReporter(),
+                   description="Output renderer based off of the pprint module",
+                   renderer=PprintRenderer,
                )
 
         """
 
     @_hookspec
-    def conda_output_handlers(self) -> Iterable[CondaOutputHandler]:
+    def conda_reporter_outputs(self) -> Iterable[CondaReporterOutput]:
         """
-        Register new output handler
+        Register new reporter output stream
 
-        The example below defines an output handler that saves output to a file
+        The example below defines an report stream that saves output to a file
 
         **Example:**
 
@@ -382,7 +383,7 @@ class CondaSpecs:
            from contextlib import contextmanager
 
            from conda import plugins
-           from conda.plugins.types import CondaOutputHandler
+           from conda.plugins.types import CondaReporterOutput
 
 
            @contextmanager
@@ -395,11 +396,11 @@ class CondaSpecs:
 
 
            @plugins.hookimpl
-           def conda_output_handler():
-               yield CondaOutputHandler(
+           def conda_reporter_outputs():
+               yield CondaReporterOutput(
                    name="file",
-                   description="Output handler that writes output to a file",
-                   get_output_io=file_io,
+                   description="Reporter output that writes output to a file",
+                   stream=file_io,
                )
 
         """

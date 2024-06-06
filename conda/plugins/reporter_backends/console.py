@@ -1,9 +1,9 @@
 # Copyright (C) 2012 Anaconda, Inc
 # SPDX-License-Identifier: BSD-3-Clause
 """
-Defines a "console" reporter handler.
+Defines a "console" reporter backend.
 
-This reporter handler provides the default output for conda.
+This reporter backend provides the default output for conda.
 """
 
 from __future__ import annotations
@@ -13,16 +13,15 @@ from os.path import basename, dirname
 from ...base.constants import ROOT_ENV_NAME
 from ...base.context import context
 from ...common.path import paths_equal
-from .. import CondaReporterHandler, hookimpl
-from ..types import ReporterHandlerBase
+from .. import CondaReporterBackend, hookimpl
+from ..types import ReporterRendererBase
 
 
-class ConsoleReporterHandler(ReporterHandlerBase):
+class ConsoleReporterRenderer(ReporterRendererBase):
     """
     Default implementation for console reporting in conda
     """
-
-    def detail_view(self, data: dict[str, str | int | bool], **kwargs) -> str:
+    def table(self, data: dict[str, str | int | bool], **kwargs) -> str:
         table_parts = [""]
         longest_header = max(map(len, data.keys()))
 
@@ -33,7 +32,7 @@ class ConsoleReporterHandler(ReporterHandlerBase):
 
         return "\n".join(table_parts)
 
-    def envs_list(self, prefixes, **kwargs) -> str:
+    def list(self, prefixes, **kwargs) -> str:
         output = ["", "# conda environments:", "#"]
 
         def disp_env(prefix):
@@ -57,12 +56,12 @@ class ConsoleReporterHandler(ReporterHandlerBase):
 
 
 @hookimpl
-def conda_reporter_handlers():
+def conda_reporter_backends():
     """
-    Reporter handler for console
+    Reporter backend for console
     """
-    yield CondaReporterHandler(
+    yield CondaReporterBackend(
         name="console",
         description="Default implementation for console reporting in conda",
-        handler=ConsoleReporterHandler(),
+        renderer=ConsoleReporterRenderer,
     )

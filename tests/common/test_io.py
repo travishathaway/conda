@@ -11,14 +11,14 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from conda import reporters
 from conda.common.io import (
     CaptureTarget,
-    ReporterManager,
     attach_stderr_handler,
     captured,
 )
-from conda.plugins import CondaOutputHandler, CondaReporterHandler
-from conda.plugins.types import ReporterHandlerBase
+from conda.plugins import CondaReporterBackend, CondaReporterOutput
+from conda.plugins.types import ReporterRendererBase
 
 if TYPE_CHECKING:
     from pytest import CaptureFixture
@@ -99,12 +99,12 @@ def test_attach_stderr_handler():
     assert debug_message in c.stderr
 
 
-class DummyReporterHandler(ReporterHandlerBase):
-    def envs_list(self, data, **kwargs) -> str:
-        return f"envs_list: {data}"
+class DummyReporterRenderer(ReporterRendererBase):
+    def list(self, data, **kwargs) -> str:
+        return f"list: {data}"
 
-    def detail_view(self, data: dict[str, str | int | bool], **kwargs) -> str:
-        return f"detail_view: {data}"
+    def table(self, data: dict[str, str | int | bool], **kwargs) -> str:
+        return f"table: {data}"
 
 
 @contextmanager
@@ -112,43 +112,42 @@ def dummy_io():
     yield sys.stdout
 
 
-def test_reporter_manager(capsys: CaptureFixture):
+def test_reporters_rendeer(capsys: CaptureFixture):
     """
     Ensure basic coverage of the :class:`~conda.common.io.ReporterManager` class.
     """
     # Setup
-    reporter_handler = CondaReporterHandler(
-        name="test-reporter-handler", description="test", handler=DummyReporterHandler()
+    reporter_backend = CondaReporterBackend(
+        name="test-reporter-backend", description="test", renderer=DummyReporterRenderer
     )
-    output_handler = CondaOutputHandler(
-        name="test-output-handler", description="test", get_output_io=dummy_io
+    reporter_output = CondaReporterOutput(
+        name="test-reporter-output", description="test", stream=dummy_io
     )
     plugin_manager = SimpleNamespace(
-        get_reporter_handler=lambda _: reporter_handler,
-        get_output_handler=lambda _: output_handler,
+        get_reporter_backend=lambda _: reporter_backend,
+        get_reporter_output=lambda _: reporter_output,
     )
-    reporters = ({"backend": "test-reporter-handler", "output": "test-output-handler"},)
+    reporters = ({"backend": "test-reporter-backend", "output": "test-reporter-output"},)
 
     context = SimpleNamespace(plugin_manager=plugin_manager, reporters=reporters)
-    reporter_manager = ReporterManager(context)
 
     # Test simple rendering of object
-    reporter_manager.render("test-string")
+    reporters.render("test-string")
 
     stdout, stderr = capsys.readouterr()
     assert stdout == "test-string"
     assert not stderr
 
-    # Test rendering of object with a component
-    reporter_manager.render("test-string", component="envs_list")
+    # Test rendering of object with a style
+    reporters.render("test-string", style="envs_list")
 
     stdout, stderr = capsys.readouterr()
     assert stdout == "envs_list: test-string"
     assert not stderr
 
-    # Test error when component cannot be found
+    # Test error when style cannot be found
     with pytest.raises(
         AttributeError,
-        match="'non_existent_view' is not a valid reporter handler component",
+        match="'non_existent_view' is not a valid reporter backend style",
     ):
-        reporter_manager.render({"test": "data"}, component="non_existent_view")
+        reporters.render({"test": "data"}, style="non_existent_view")
