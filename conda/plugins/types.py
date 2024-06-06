@@ -6,7 +6,6 @@ Definition of specific return types for use when defining a conda plugin hook.
 Each type corresponds to the plugin hook for which it is used.
 
 """
-
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -213,62 +212,65 @@ class CondaSetting:
     aliases: tuple[str, ...] = tuple()
 
 
-class ReporterHandlerBase(ABC):
+class ReporterRendererBase(ABC):
     """
-    Base class for all reporter handlers.
+    Base class for all reporter renderers.
     """
-
-    def render(self, data: Any, **kwargs) -> str:
+    def default(self, data: Any, **kwargs) -> str:
+        """
+        How to render the data by default
+        """
         return str(data)
 
     @abstractmethod
-    def detail_view(self, data: dict[str, str | int | bool], **kwargs) -> str:
+    def table(self, data: Any, **kwargs) -> str:
         """
-        Render the output in a "tabular" format.
+        Renders the data in a tabular format.
         """
 
     @abstractmethod
-    def envs_list(self, data, **kwargs) -> str:
+    def list(self, data: Any, **kwargs) -> str:
         """
-        Render a list of environments
+        Renders the data in a plain list
         """
 
 
 @dataclass
-class CondaReporterHandler:
+class CondaReporterBackend:
     """
-    Return type to use when defining a conda reporter handler plugin hook.
+    Return type to use when defining a conda report renderer plugin hook.
 
     For details on how this is used, see:
-    :meth:`~conda.plugins.hookspec.CondaSpecs.conda_reporter_handler`.
+    :meth:`~conda.plugins.hookspec.CondaSpecs.conda_report_renderers`.
 
-    :param name: name of the reporter handler (e.g., ``email_reporter``)
-                 This is how the reporter handler with be references in configuration files.
-    :param description: short description of what the reporter handler does
-    :param handler: implementation of ``ReporterHandlerBase`` that will be used as the
-                    reporter handler
+    :param name: name of the reporter backend (e.g., ``email_reporter``)
+                 This is how the reporter backend with be references in configuration files.
+    :param description: short description of what the reporter backend does
+    :param renderer: implementation of ``ReporterRendererBase`` that will be used as the
+                     reporter renderer
     """
 
     name: str
     description: str
-    handler: ReporterHandlerBase
+    renderer: ReporterRendererBase
 
 
 @dataclass
-class CondaOutputHandler:
+class CondaReporterOutput:
     """
-    Return type to use when defining a conda output handler plugin hook.
+    Return type to use when defining a conda report stream plugin hook.
 
     For details on how this is used, see:
-    :meth:`~conda.plugins.hookspec.CondaSpecs.conda_output_handler`.
+    :meth:`~conda.plugins.hookspec.CondaSpecs.conda_report_streams`.
 
-    :param name: name of the output handler (e.g., ``email_reporter``)
-                 This is how the reporter handler with be references in configuration files.
-    :param description: short description of what the reporter handler does
-    :param get_output_io: a callable object returning a ``TextIO`` compatible object.
-                          See :class:`~conda.plugins.types.OutputIO` for more information.
+    :param name: name of the report stream (e.g., ``email_reporter``)
+                 This is how the report stream with be references in
+                 configuration files.
+    :param description: short description of what the report stream does
+    :param stream: a callable object returning a ``TextIO`` compatible object.
+                   See :class:`~conda.plugins.types.ReportIO` for more information.
     """
 
     name: str
     description: str
-    get_output_io: Callable[[], ContextManager]
+    stream: Callable[[], ContextManager]

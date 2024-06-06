@@ -11,17 +11,20 @@ import os
 import re
 import sys
 from argparse import SUPPRESS, _StoreTrueAction
+from functools import cached_property
 from logging import getLogger
 from os.path import exists, expanduser, isfile, join
 from textwrap import wrap
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
+from ..core.envs_manager import list_all_known_prefixes
 from ..deprecations import deprecated
 
 if TYPE_CHECKING:
     from argparse import ArgumentParser, Namespace, _SubParsersAction
     from typing import Any, Iterable
 
+    from ..base.context import Context
     from ..models.records import PackageRecord
 
 log = getLogger(__name__)
@@ -391,7 +394,7 @@ def get_main_info_display(info_dict: dict[str, Any]) -> dict[str, str]:
         yield ("netrc file", info_dict["netrc_file"])
         yield ("offline mode", info_dict["offline"])
 
-    return {key: value for key, value in builder()}
+    return dict(builder())
 
 
 def get_main_info_str(info_dict: dict[str, Any]) -> str:
@@ -408,55 +411,57 @@ def get_main_info_str(info_dict: dict[str, Any]) -> str:
     )
 
 
-InfoComponents = Literal["base", "channels", "envs", "system", "detail", "json_all"]
+class InfoRenderer:
+    def __init__(self, context: Context, reporters):
+        self.context = context
+        self.reporters = reporters
 
+    @cached_property
+    def info_dict(self) -> dict[str, Any]:
+        return get_info_dict()
 
-def get_display_data(
-    component: InfoComponents, args: Namespace, context
-) -> tuple[dict[str, str] | str, str | None]:
-    """
-    Determines the data the ``conda info`` command will display
-    """
-    if component == "base":
-        if context.json:
-            return {"root_prefix": context.root_prefix}, None
+    def render(self, name, style=None):
+        try:
+            return self.reporters.render(
+                getattr(self, f"{name}_data")(),
+                reporters=self.reporters,
+                style=style
+            )
+        except AttributeError:
+            pass
+
+    def base_data(self) -> str:
+        if self.context.json:
+            return {"root_prefix": self.context.root_prefix}
         else:
-            return f"{context.root_prefix}\n", None
+            return f"{self.context.root_prefix}\n"
 
-    if component == "channels":
-        if context.json:
-            return {"channels": context.channels}, None
+    def channels_data(self) -> str:
+        if self.context.json:
+            return {"channels": self.context.channels}
         else:
-            channels_str = "\n".join(context.channels)
-            return f"{channels_str}\n", None
+            channels = "\n".join(self.context.channels)
+            return f"{channels}\n"
 
-    info_dict = get_info_dict()
+    def envs_data(self) -> str:
+        if not self.context.json:
+            return list_all_known_prefixes()
 
-    if component == "detail":
-        return get_main_info_display(info_dict), "detail_view"
-
-    from ..core.envs_manager import list_all_known_prefixes
-
-    info_dict["envs"] = list_all_known_prefixes()
-
-    if component == "envs":  # args.envs:
-        if not context.json:
-            return list_all_known_prefixes(), "envs_list"
-
-    if component == "system":  # args.system and not context.json:
+    def system_data(self) -> str:
         from .find_commands import find_commands, find_executable
 
         output = [
             f"sys.version: {sys.version[:40]}...",
             f"sys.prefix: {sys.prefix}",
             f"sys.executable: {sys.executable}",
-            "conda location: {}".format(info_dict["conda_location"]),
+            f'conda location: {self.info_dict["conda_location"]}',
         ]
 
-        for cmd in sorted(set(find_commands() + ("build",))):
-            output.append("conda-{}: {}".format(cmd, find_executable("conda-" + cmd)))
+        for cmd_name in sorted({find_commands() + ("build",)}):
+            cmd_exe = find_executable(f"conda-{cmd_name}")
+            output.append(f"conda-{cmd_name}: {cmd_exe}")
 
-        site_dirs = info_dict["site_dirs"]
+        site_dirs = self.info_dict["site_dirs"]
         if site_dirs:
             output.append(f"user site dirs: {site_dirs[0]}")
         else:
@@ -467,15 +472,19 @@ def get_display_data(
 
         output.append("")
 
-        for name, value in sorted(info_dict["env_vars"].items()):
+        for name, value in sorted(self.info_dict["env_vars"].items()):
             output.append(f"{name}: {value}")
 
         output.append("")
 
-        return "\n".join(output), None
+        return "\n".join(output)
 
-    if component == "json_all":
-        return info_dict, None
+    def detail_data(self) -> str:
+        return get_main_info_display(self.info_dict)
+
+    def json_all_data(self) -> dict[str, Any]:
+        return self.info_dict
+
 
 
 def execute(args: Namespace, parser: ArgumentParser) -> int:
@@ -484,22 +493,20 @@ def execute(args: Namespace, parser: ArgumentParser) -> int:
 
      * ``conda info``
      * ``conda info --base``
-     * ``conda info <package_spec> ...`` (deprecated) (no ``--json``)
      * ``conda info --unsafe-channels``
      * ``conda info --envs`` (deprecated) (no ``--json``)
      * ``conda info --system`` (deprecated) (no ``--json``)
     """
-
+    from .. import reporters
     from ..base.context import context
-    from ..common.io import get_reporter_manager
 
-    components: list[InfoComponents] = []
+    renderer = InfoRenderer(context, reporters)
 
     if args.base:
-        components.append("base")
+        renderer.render("base")
 
     if args.unsafe_channels:
-        components.append("channels")
+        renderer.render("channels")
 
     options = "envs", "system"
 
@@ -513,21 +520,15 @@ def execute(args: Namespace, parser: ArgumentParser) -> int:
         and not args.base
         and not args.unsafe_channels
     ):
-        components.append("detail")
+        renderer.render("detail")
 
     if context.verbose or args.envs and not context.json:
-        components.append("envs")
+        renderer.render("envs", style="list")
 
     if context.verbose or args.system and not context.json:
-        components.append("system")
+        renderer.render("system")
 
     if context.json and not args.base and not args.unsafe_channels:
-        components.append("json_all")
-
-    reporter_manager = get_reporter_manager()
-
-    for component in components:
-        display_dict, component = get_display_data(component, args, context)
-        reporter_manager.render(display_dict, component=component, context=context)
+        renderer.render("json_all", style="table")
 
     return 0
