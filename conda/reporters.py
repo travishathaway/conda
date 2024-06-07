@@ -5,7 +5,7 @@ from __future__ import annotations
 from .base.context import context
 
 
-def render(data, reporters, style: str | None = None, **kwargs) -> None:
+def render(data, style: str | None = None, **kwargs) -> None:
     """
     Glues together the configured ``ReporterBackend`` and ``ReporterOutput``
     instances as configured in the reporters setting.

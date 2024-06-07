@@ -1,22 +1,34 @@
 # Copyright (C) 2012 Anaconda, Inc
 # SPDX-License-Identifier: BSD-3-Clause
 from __future__ import annotations
+from contextlib import contextmanager
+from sys import stdout
+from typing import TYPE_CHECKING
 
 import pytest
 
 from conda import plugins
-from conda.plugins.reporter_backends import plugins as default_plugins
-from conda.plugins.types import CondaReporterBackend, ReporterRendererBase
+from conda.auxlib.ish import dals
+from conda.base.context import context, reset_context
+from conda.common.configuration import YamlRawParameter
+from conda.common.serialize import yaml_round_trip_load
+from conda.reporters import render
+from conda.plugins.reporter_backends import plugins as default_reporter_backends
+from conda.plugins.reporter_outputs import plugins as default_reporter_outputs
+from conda.plugins.types import CondaReporterBackend, CondaReporterOutput, ReporterRendererBase
+
+if TYPE_CHECKING:
+    from pytest import CaptureFixture
 
 
 class DummyReporterRenderer(ReporterRendererBase):
     """Dummy reporter renderer only for tests"""
 
     def table(self, data: dict[str, str | int | bool], **kwargs) -> str:
-        return str(data)
+        return f"table: {data}"
 
     def list(self, data, **kwargs) -> str:
-        return str(data)
+        return f"list: {data}"
 
 
 class ReporterBackendPlugin:
@@ -33,13 +45,14 @@ class ReporterBackendPlugin:
 def dummy_reporter_backend_plugin(plugin_manager):
     reporter_backend_plugin = ReporterBackendPlugin()
     plugin_manager.register(reporter_backend_plugin)
-
+    for default_reporter_output in default_reporter_outputs:
+        plugin_manager.register(default_reporter_output)
     return plugin_manager
 
 
 @pytest.fixture()
 def default_reporter_backend_plugin(plugin_manager):
-    for reporter_plugin in default_plugins:
+    for reporter_plugin in default_reporter_backends:
         plugin_manager.register(reporter_plugin)
 
     return plugin_manager
@@ -86,3 +99,42 @@ def test_console_reporter_backend(
     result = renderer(data)
 
     assert result == expected
+
+
+def test_reporters_render(dummy_reporter_backend_plugin, capsys: CaptureFixture):
+    reset_context()
+    TEST_CONDARC = dals(
+        """
+        reporters:
+        - backend: dummy
+          output: stdout
+        """
+    )
+
+    rd = {
+        "testdata": YamlRawParameter.make_raw_parameters(
+            "testdata", yaml_round_trip_load(TEST_CONDARC)
+        )
+    }
+    context._set_raw_data(rd)
+
+    # Test simple rendering of object
+    render("test-string")
+
+    stdout, stderr = capsys.readouterr()
+    assert stdout == "test-string"
+    assert not stderr
+
+    # Test rendering of object with a style
+    render("test-string", style="list")
+
+    stdout, stderr = capsys.readouterr()
+    assert stdout == "list: test-string"
+    assert not stderr
+
+    # Test error when style cannot be found
+    with pytest.raises(
+        AttributeError,
+        match="'non_existent_view' is not a valid reporter backend style",
+    ):
+        render({"test": "data"}, style="non_existent_view")
