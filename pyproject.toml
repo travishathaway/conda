@@ -41,6 +41,7 @@ dependencies = [
   "setuptools >=60.0.0",
   "tqdm >=4",
   "truststore >=0.8.0; python_version>='3.10'",
+  "typer >=0.9.0",
   "zstandard >=0.15",
 ]
 description = "OS-agnostic, system-level binary package manager."
@@ -52,6 +53,7 @@ requires-python = ">=3.10"
 
 [project.scripts]
 conda = "conda.cli.main_pip:main"
+cx = "conda.cli_new.main:main"
 
 [project.urls]
 changelog = "https://github.com/conda/conda/blob/main/CHANGELOG.md"
