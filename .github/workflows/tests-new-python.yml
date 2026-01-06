@@ -70,6 +70,10 @@ jobs:
         default-channel: ${{ fromJSON(inputs.default_channel) }}
         test-type: [unit, integration]
         test-group: [1, 2, 3]
+        exclude:
+          - test-type: unit
+            test-group: 3
+
     env:
       ErrorActionPreference: Stop  # powershell exit immediately on error
       PYTEST_MARKER: ${{ matrix.test-type == 'unit' && 'not integration' || 'integration' }}
@@ -204,6 +208,9 @@ jobs:
         default-channel: ${{ fromJSON(inputs.default_channel) }}
         test-type: [unit, integration]
         test-group: [1, 2, 3]
+        exclude:
+          - test-type: unit
+            test-group: 3
     env:
       PYTEST_MARKER: ${{ matrix.test-type == 'unit' && 'not integration' || 'integration' }}
       PYTEST_SPLITS: ${{ matrix.test-type == 'unit' && '2' || '3' }}
@@ -319,6 +326,9 @@ jobs:
         default-channel: ${{ fromJSON(inputs.default_channel) }}
         test-type: [unit, integration]
         test-group: [1, 2, 3]
+        exclude:
+          - test-type: unit
+            test-group: 3
     env:
       PYTEST_MARKER: ${{ matrix.test-type == 'unit' && 'not integration' || 'integration' }}
       PYTEST_SPLITS: ${{ matrix.test-type == 'unit' && '2' || '3' }}
