@@ -32,8 +32,7 @@ repos:
         exclude: |
           (?x)^(
             (conda\.)?recipe/meta.yaml |
-            tests/data/recipes/font-ttf-inconsolata/meta.yaml |
-            tests/data/recipes/dependent/meta.yaml
+            tests/data/recipes/(.*/)?meta\.yaml$
           )
       # catch git merge/rebase problems
       - id: check-merge-conflict

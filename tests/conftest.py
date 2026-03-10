@@ -45,6 +45,7 @@ pytest_plugins = (
     "conda.testing.notices.fixtures",
     "conda.testing.fixtures",
     "tests.fixtures_package_server",
+    "tests.fixtures_priority_channels",
 )
 
 

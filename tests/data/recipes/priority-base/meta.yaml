@@ -1,0 +1,17 @@
+package:
+  name: priority-base
+  version: {{ version }}
+
+build:
+  noarch: generic
+  number: 0
+
+requirements:
+  run:
+    - priority-lib
+
+about:
+  summary: Test package for channel priority testing
+  description: |
+    This package is used exclusively for testing channel priority behavior.
+    It exists in multiple versions to simulate channel differences.

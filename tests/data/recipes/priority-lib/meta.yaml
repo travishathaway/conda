@@ -1,0 +1,13 @@
+package:
+  name: priority-lib
+  version: {{ version }}
+
+build:
+  noarch: generic
+  number: 0
+
+about:
+  summary: Transient dependency for channel priority testing
+  description: |
+    This package is used exclusively for testing channel priority behavior.
+    Represents a transient dependency that should move with parent packages.

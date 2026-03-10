@@ -1,0 +1,17 @@
+package:
+  name: priority-dep
+  version: {{ version }}
+
+build:
+  noarch: generic
+  number: 0
+
+requirements:
+  run:
+    - priority-lib
+
+about:
+  summary: Test package for channel priority testing (dependency)
+  description: |
+    This package is used exclusively for testing channel priority behavior.
+    Represents an unpinned dependency that should move channels during update.
