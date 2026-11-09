@@ -1671,12 +1671,15 @@ class Context(Configuration):
             ),
             exclude_newer_package=dals(
                 """
-                Per-package overrides for the exclude_newer policy. Maps package
+                Per-package overrides for the `exclude_newer` policy. Maps package
                 names to a duration string (e.g. "30d"), a timestamp, or false
                 to exempt the package entirely. For example:
-                  exclude_newer_package:
-                    openssl: false
-                    numpy: 30d
+
+                ```yaml
+                exclude_newer_package:
+                  openssl: false
+                  numpy: 30d
+                ```
                 """
             ),
             # TODO: This is a bad parameter name. Consider an alternate.
@@ -1741,10 +1744,11 @@ class Context(Configuration):
                 """
                 Threads to use by default for parallel operations.  Default is None,
                 which allows operations to choose themselves.  For more specific
-                control, see the other *_threads parameters:
-                    * repodata_threads - for fetching/loading repodata
-                    * verify_threads - for verifying package contents in transactions
-                    * execute_threads - for carrying out the unlinking and linking steps
+                control, see the other `*_threads` parameters:
+
+                * `repodata_threads` - for fetching/loading repodata
+                * `verify_threads` - for verifying package contents in transactions
+                * `execute_threads` - for carrying out the unlinking and linking steps
                 """
             ),
             disallowed_packages=dals(
@@ -1773,8 +1777,8 @@ class Context(Configuration):
                 '{prefix}' is the absolute path to the active environment. '{name}' is the
                 basename of the active environment prefix. '{default_env}' holds the value
                 of '{name}' if the active environment is a conda named environment ('-n'
-                flag), or otherwise holds the value of '{prefix}'. Templating uses python's
-                str.format() method.
+                flag), or otherwise holds the value of '{prefix}'. Templating uses Python's
+                `str.format()` method.
                 """
             ),
             environment_specifier=dals(

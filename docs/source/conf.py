@@ -22,11 +22,15 @@ version = release = conda.__version__
 
 # -- General configuration ------------------------------------------------
 
+# ``confval`` (used by conda_config_reference) was added in Sphinx 7.4
+needs_sphinx = "7.4"
+
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
     "autoapi.extension",
+    "conda_config_reference",
     "conda_umls",
     "conda_sphinx_theme.version_anchors",
     "nav_glossary",

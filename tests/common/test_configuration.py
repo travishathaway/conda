@@ -1076,3 +1076,85 @@ def test_unique_sequence_map_error_with_unique_key(
             "backend",
         )
     ]
+
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        pytest.param(
+            "always_yes",
+            {
+                "env_vars": (
+                    "TEST_ALWAYS_YES",
+                    "TEST_ALWAYS_YES_ALTNAME1",
+                    "TEST_YES",
+                    "TEST_ALWAYS_YES_ALTNAME2",
+                ),
+                "expandvars": False,
+                "value_type": "bool",
+            },
+            id="primitive-with-aliases",
+        ),
+        pytest.param(
+            "channels",
+            {
+                "env_vars": ("TEST_CHANNELS", "TEST_CHANNELS_ALTNAME"),
+                "expandvars": False,
+                "value_type": "list[str]",
+                "string_delimiter": ",",
+            },
+            id="sequence",
+        ),
+        pytest.param(
+            "env_var_list",
+            {
+                "env_vars": ("TEST_ENV_VAR_LIST",),
+                "expandvars": True,
+                "value_type": "list[str]",
+                "string_delimiter": ",",
+            },
+            id="sequence-expandvars",
+        ),
+        pytest.param(
+            "proxy_servers",
+            {
+                "env_vars": ("TEST_PROXY_SERVERS",),
+                "expandvars": False,
+                "value_type": "map[str, str]",
+            },
+            id="map",
+        ),
+        pytest.param(
+            "nested_map",
+            {
+                "env_vars": ("TEST_NESTED_MAP",),
+                "expandvars": False,
+                "value_type": "map[str, list[str]]",
+            },
+            id="nested-map",
+        ),
+        pytest.param(
+            "nested_seq",
+            {
+                "env_vars": ("TEST_NESTED_SEQ",),
+                "expandvars": False,
+                "value_type": "list[map[str, str]]",
+                "string_delimiter": ",",
+            },
+            id="nested-sequence",
+        ),
+    ],
+)
+def test_describe_parameter_sources(name: str, expected: dict):
+    config = SampleConfiguration(app_name="test")
+    assert config.describe_parameter_sources(name) == expected
+
+
+def test_describe_parameter_sources_without_app_name():
+    sources = SampleConfiguration().describe_parameter_sources("changeps1")
+    assert sources["env_vars"] == ("CHANGEPS1",)
+
+
+def test_describe_parameter_sources_unknown_parameter():
+    with raises(KeyError):
+        SampleConfiguration(app_name="test").describe_parameter_sources("nope")

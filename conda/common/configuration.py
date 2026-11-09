@@ -1224,6 +1224,30 @@ class ObjectParameter(Parameter):
         )
 
 
+def _describe_value_type(parameter: Parameter) -> str:
+    """Describe a parameter's type the way it is written in a configuration file."""
+    if isinstance(parameter, SequenceParameter):
+        return f"list[{_describe_value_type(parameter._element_type)}]"
+    if isinstance(parameter, MapParameter):
+        return f"map[str, {_describe_value_type(parameter._element_type)}]"
+    element_types = parameter._element_type
+    if not isiterable(element_types):
+        element_types = (element_types,)
+    names = []
+    for element_type in element_types:
+        if isinstance(element_type, Enum):
+            element_type = type(element_type)
+        if isinstance(element_type, EnumMeta):
+            name = " | ".join(str(member.value) for member in element_type)
+        elif element_type is type(None):
+            name = "null"
+        else:
+            name = getattr(element_type, "__name__", str(element_type))
+        if name not in names:
+            names.append(name)
+    return " | ".join(names)
+
+
 class ParameterLoader:
     """
     ParameterLoader class contains the top level logic needed to load a parameter from start to
@@ -1751,6 +1775,45 @@ class Configuration(metaclass=ConfigurationType):
         }
         if isinstance(parameter, SequenceParameter):
             details["string_delimiter"] = parameter.string_delimiter
+        return details
+
+    def describe_parameter_sources(self, parameter_name: str) -> dict[str, Any]:
+        """Describe how a parameter can be set outside of configuration files.
+
+        Complements :meth:`describe_parameter` without changing its output.
+
+        Args:
+            parameter_name: Name of the parameter (a leading underscore is optional).
+
+        Returns:
+            A mapping with the keys ``env_vars`` (environment variable names, the
+            canonical one first, then one per alias), ``expandvars`` (whether
+            ``${VAR}`` references are expanded in the value), ``value_type`` (the
+            type as written in a configuration file, e.g. ``list[str]``,
+            ``map[str, list[str]]`` or ``strict | flexible | disabled`` for enums)
+            and, for sequence parameters only, ``string_delimiter`` (the separator
+            used when the value is given through an environment variable).
+
+        Raises:
+            KeyError: If ``parameter_name`` is not a known parameter.
+        """
+        if parameter_name not in self.parameter_names:
+            parameter_name = "_" + parameter_name
+
+        parameter_loader = self._get_parameter_loader(parameter_name)
+        if parameter_loader is None:
+            raise KeyError(parameter_name)
+
+        name = parameter_loader.name.lstrip("_")
+        names = (name, *(alias for alias in parameter_loader.aliases if alias != name))
+        prefix = f"{self._app_name.upper()}_" if self._app_name else ""
+        details: dict[str, Any] = {
+            "env_vars": tuple(f"{prefix}{n.upper()}" for n in names),
+            "expandvars": parameter_loader._expandvars,
+            "value_type": _describe_value_type(parameter_loader.type),
+        }
+        if isinstance(parameter_loader.type, SequenceParameter):
+            details["string_delimiter"] = parameter_loader.type.string_delimiter
         return details
 
     def list_parameters(self, aliases: bool = False):

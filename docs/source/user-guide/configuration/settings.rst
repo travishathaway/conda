@@ -5,6 +5,12 @@ Settings
 This page contains an overview of many important settings available in conda
 with examples where possible.
 
+.. tip::
+
+   The :doc:`configuration reference </configuration>` is generated from conda
+   itself and lists every setting with its type, default, aliases, and
+   environment variable. Prefer it when this page and the reference disagree.
+
 General configuration
 =====================
 

@@ -82,13 +82,14 @@ To set the ``auto_update_conda option`` to ``False``, run::
 For a complete list of conda config commands, see the
 :doc:`command reference <../../commands/config>`. The same list
 is available at the terminal by running
-``conda config --help``. You can also see the `conda channel
-configuration <https://conda.io/projects/conda/en/latest/configuration.html>`_ for more information.
+``conda config --help``.
 
 Conda supports a wide range of configuration options. This page
 gives a non-exhaustive list of the most frequently used options and
-their usage. For a complete list of all available options for your
-version of conda, use the ``conda config --describe`` command.
+their usage. For a complete list of all available options, see the
+:doc:`configuration reference <../../configuration>`. To list the options
+available in your installed version of conda, use the
+``conda config --describe`` command.
 
 .. _condarc_search_precedence:
 

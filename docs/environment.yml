@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - Pillow==13.0.0
-  - Sphinx<10
+  - Sphinx>=7.4,<10
   - boltons>=26.2.0
   - conda-sphinx-theme==0.5.0
   - frozendict>=2.5.0

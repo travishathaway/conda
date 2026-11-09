@@ -1,0 +1,19 @@
+### Enhancements
+
+* Add `Configuration.describe_parameter_sources` to describe the environment variables, variable expansion, and file-format type of a configuration parameter. (#0000)
+
+### Bug fixes
+
+* <news item>
+
+### Deprecations
+
+* <news item>
+
+### Docs
+
+* Replace the generated `.condarc` skeleton on the configuration page with a structured configuration reference that lists every documented setting with its type, default, aliases, and environment variables, grouped by category with permalinks and cross-reference targets (`:confval:`). (#0000)
+
+### Other
+
+* <news item>

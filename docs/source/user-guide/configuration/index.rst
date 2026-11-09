@@ -25,9 +25,12 @@ configuration.
         Learn how to use a settings file (``.condarc``) to override defaults and maintain
         settings across shell sessions
 
+    :doc:`Configuration reference </configuration>`
+        The complete list of conda settings with their types, defaults, aliases, and
+        environment variables
+
     :doc:`Settings <settings>`
-        View a list and definition of all the configuration settings that can be used within
-        conda
+        Worked examples for many commonly used configuration settings
 
     :doc:`Administering a multi-user conda installation <admin-multi-user-install>`
         How to set up conda as a system administrator for use by multiple users
