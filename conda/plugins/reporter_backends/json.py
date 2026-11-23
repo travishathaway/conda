@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from ...base.constants import DEFAULT_JSON_REPORTER_BACKEND
 from ...common.io import swallow_broken_pipe
 from ...common.serialize import json
+from ...deprecations import deprecated
 from .. import hookimpl
 from ..types import (
     CondaReporterBackend,
@@ -133,12 +134,27 @@ class JSONReporterRenderer(ReporterRendererBase):
             bar.close()
         self._fetch_bars.clear()
 
+    @deprecated(
+        "27.3",
+        "27.9",
+        addendum="Implement `render_data` instead.",
+    )
     def render(self, data: Any, **kwargs) -> str:
         return json.dumps(data)
 
+    @deprecated(
+        "27.3",
+        "27.9",
+        addendum="Use `DetailViewEvent` instead.",
+    )
     def detail_view(self, data: dict[str, str | int | bool], **kwargs) -> str:
         return json.dumps(data)
 
+    @deprecated(
+        "27.3",
+        "27.9",
+        addendum="Use `EnvsListEvent` instead.",
+    )
     def envs_list(
         self, data: list[str] | dict[str, dict[str, str | bool | None]], **kwargs
     ) -> str:
@@ -146,6 +162,11 @@ class JSONReporterRenderer(ReporterRendererBase):
             return json.dumps({"envs": data})
         return json.dumps(data)
 
+    @deprecated(
+        "27.3",
+        "27.9",
+        addendum="Use the `FetchTask*Event` events instead.",
+    )
     def progress_bar(
         self,
         description: str,
@@ -153,6 +174,11 @@ class JSONReporterRenderer(ReporterRendererBase):
     ) -> ProgressBarBase:
         return JSONProgressBar(description, **kwargs)
 
+    @deprecated(
+        "27.3",
+        "27.9",
+        addendum="Use `SpinnerStartEvent` and `SpinnerEndEvent` instead.",
+    )
     def spinner(self, message: str, fail_message: str = "failed\n") -> SpinnerBase:
         return JSONSpinner(message, fail_message)
 

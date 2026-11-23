@@ -35,8 +35,11 @@ from conda.reporters import (
     get_progress_bar,
     get_progress_bar_context_manager,
     get_reporter,
+    get_spinner,
     render,
+    render_data,
     reset_reporter,
+    spinner,
 )
 
 if TYPE_CHECKING:
@@ -48,14 +51,16 @@ def test_render(capsys: CaptureFixture):
     Ensure basic coverage of the :func:`~conda.reporters.render` function.
     """
     # Test simple rendering of object
-    render("test-string")
+    with pytest.deprecated_call():
+        render("test-string")
 
     stdout, stderr = capsys.readouterr()
     assert stdout == "test-string\n"
     assert not stderr
 
     # Test rendering of object with a style
-    render(["test-string"], style="envs_list")
+    with pytest.deprecated_call():
+        render(["test-string"], style="envs_list")
 
     stdout, stderr = capsys.readouterr()
     assert "conda environments" in stdout
@@ -63,9 +68,12 @@ def test_render(capsys: CaptureFixture):
     assert not stderr
 
     # Test error when style cannot be found
-    with pytest.raises(
-        AttributeError,
-        match="'non_existent_view' is not a valid reporter backend style",
+    with (
+        pytest.deprecated_call(),
+        pytest.raises(
+            AttributeError,
+            match="'non_existent_view' is not a valid reporter backend style",
+        ),
     ):
         render({"test": "data"}, style="non_existent_view")
 
@@ -78,7 +86,8 @@ def test_get_progress_bar(monkeypatch):
     monkeypatch.setattr(
         "conda.plugins.reporter_backends.console.term_dumb", lambda: False
     )
-    progress_bar_manager = get_progress_bar("test")
+    with pytest.deprecated_call():
+        progress_bar_manager = get_progress_bar("test")
 
     assert isinstance(progress_bar_manager, TQDMProgressBar)
 
@@ -88,7 +97,8 @@ def test_get_progress_bar_context_managers():
     Ensure basic coverage of the
     :func:`~conda.reporters.get_progress_bar_context_manager~` function
     """
-    progress_bar_context_manager = get_progress_bar_context_manager()
+    with pytest.deprecated_call():
+        progress_bar_context_manager = get_progress_bar_context_manager()
 
     assert isinstance(progress_bar_context_manager, nullcontext)
 
@@ -207,3 +217,83 @@ def test_reporter_send_routes_event_to_renderer(mocker, event, method):
     CondaReporter(renderer).send(event)
 
     getattr(renderer, method).assert_called_once_with(event)
+
+
+def test_spinner_sends_start_then_end(mocker):
+    reporter = mocker.patch("conda.reporters.get_reporter").return_value
+
+    with spinner("Solving", fail_message="nope\n"):
+        pass
+
+    assert [call.args[0] for call in reporter.send.call_args_list] == [
+        SpinnerStartEvent(message="Solving", fail_message="nope\n"),
+        SpinnerEndEvent(message="Solving", success=True),
+    ]
+
+
+@pytest.mark.parametrize("exc", [ValueError, KeyboardInterrupt])
+def test_spinner_reports_failure_and_reraises(mocker, exc):
+    reporter = mocker.patch("conda.reporters.get_reporter").return_value
+
+    with pytest.raises(exc), spinner("Solving"):
+        raise exc
+
+    assert reporter.send.call_args_list[-1].args[0] == SpinnerEndEvent(
+        message="Solving", success=False
+    )
+
+
+@pytest.mark.parametrize(
+    "data,style,kwargs,expected",
+    [
+        ("text", None, {}, RenderDataEvent(data="text")),
+        ({"a": "b"}, "detail_view", {}, DetailViewEvent(data={"a": "b"})),
+        (["/a", "/b"], "envs_list", {}, EnvsListEvent(prefixes=("/a", "/b"))),
+        (
+            ("/a",),
+            "envs_list",
+            {"show_size": True},
+            EnvsListEvent(prefixes=("/a",), show_size=True),
+        ),
+        (
+            {"envs": ["/a"], "envs_details": {}},
+            "envs_list",
+            {},
+            RenderDataEvent(data={"envs": ["/a"], "envs_details": {}}),
+        ),
+    ],
+)
+def test_render_data_sends_matching_event(mocker, data, style, kwargs, expected):
+    reporter = mocker.patch("conda.reporters.get_reporter").return_value
+
+    render_data(data, style, **kwargs)
+
+    reporter.send.assert_called_once_with(expected)
+
+
+def test_render_data_rejects_unknown_style(mocker):
+    mocker.patch("conda.reporters.get_reporter")
+
+    with pytest.raises(AttributeError, match="not a valid reporter backend style"):
+        render_data("x", "non_existent_view")
+
+
+def test_get_spinner_is_deprecated():
+    with pytest.deprecated_call(match="conda.reporters.spinner"):
+        get_spinner("message")
+
+
+@pytest.mark.parametrize(
+    "console,data,expected",
+    [
+        ("json", {"a": 1}, '{\n  "a": 1\n}'),
+        ("classic", "plain", "plain\n"),
+    ],
+)
+def test_render_data_end_to_end(monkeypatch, capsys, console, data, expected):
+    monkeypatch.setenv("CONDA_CONSOLE", console)
+    reset_context()
+
+    render_data(data)
+
+    assert capsys.readouterr().out == expected

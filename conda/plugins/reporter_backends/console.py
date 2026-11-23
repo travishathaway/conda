@@ -23,6 +23,7 @@ from ...common.io import swallow_broken_pipe
 from ...common.path import paths_equal
 from ...common.terminal import is_tty, term_dumb
 from ...core.prefix_data import PrefixData
+from ...deprecations import deprecated
 from ...exceptions import CondaError
 from ...utils import human_bytes
 from .. import hookimpl
@@ -316,15 +317,30 @@ class ConsoleReporterRenderer(ReporterRendererBase):
             else:
                 print(" done")
 
+    @deprecated(
+        "27.3",
+        "27.9",
+        addendum="Implement `render_data` instead.",
+    )
     def render(self, data: Any, **kwargs) -> str:
         text = str(data)
         # trailing newline
         return text if text.endswith("\n") else f"{text}\n"
 
+    @deprecated(
+        "27.3",
+        "27.9",
+        addendum="Use `DetailViewEvent` instead.",
+    )
     def detail_view(self, data: dict[str, str | int | bool], **kwargs) -> str:
         return _format_detail_view(data)
 
     @staticmethod
+    @deprecated(
+        "27.3",
+        "27.9",
+        addendum="Use `EnvsListEvent` instead.",
+    )
     def envs_list(prefixes: Iterable[PathType | PrefixData], **kwargs) -> str:
         return _format_envs_list(prefixes, kwargs.get("show_size", False))
 
@@ -333,6 +349,11 @@ class ConsoleReporterRenderer(ReporterRendererBase):
         """True when progress bars/spinners should be suppressed."""
         return context.quiet or not is_tty() or term_dumb()
 
+    @deprecated(
+        "27.3",
+        "27.9",
+        addendum="Use the `FetchTask*Event` events instead.",
+    )
     def progress_bar(
         self,
         description: str,
@@ -351,6 +372,11 @@ class ConsoleReporterRenderer(ReporterRendererBase):
         else:
             return TQDMProgressBar(description, **kwargs)
 
+    @deprecated(
+        "27.3",
+        "27.9",
+        addendum="Use `SpinnerStartEvent` and `SpinnerEndEvent` instead.",
+    )
     def spinner(self, message: str, fail_message: str = "failed\n") -> SpinnerBase:
         """
         Determines whether to return a Spinner or QuietSpinner.
