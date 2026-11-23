@@ -1,0 +1,3 @@
+### Enhancements
+
+* Add reporter event types (`DetailViewEvent`, `EnvsListEvent`, `FetchSectionEndEvent`, `FetchSectionStartEvent`, `FetchTaskEndEvent`, `FetchTaskProgressEvent`, `FetchTaskStartEvent`, `RenderDataEvent`, `SpinnerEndEvent`, `SpinnerStartEvent`) and matching no-op `render_*` methods on `conda.plugins.types.ReporterRendererBase`. (#16409)

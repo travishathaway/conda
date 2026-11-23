@@ -40,6 +40,18 @@ if TYPE_CHECKING:
     from ..models.environment import Environment
     from ..models.match_spec import MatchSpec
     from ..models.records import PrefixRecord
+    from .reporter_backends.events import (
+        DetailViewEvent,
+        EnvsListEvent,
+        FetchSectionEndEvent,
+        FetchSectionStartEvent,
+        FetchTaskEndEvent,
+        FetchTaskProgressEvent,
+        FetchTaskStartEvent,
+        RenderDataEvent,
+        SpinnerEndEvent,
+        SpinnerStartEvent,
+    )
 
     CondaPrefixDataLoaderCallable: TypeAlias = Callable[
         [PathType, dict[str, PrefixRecord]],
@@ -501,7 +513,61 @@ class SpinnerBase(ABC):
 class ReporterRendererBase(ABC):
     """
     Base class for all reporter renderers.
+
+    Renderers respond to events sent through :meth:`conda.reporters.CondaReporter.send`
+    by overriding the ``render_*`` methods. These all default to doing nothing so
+    existing renderers keep working while they migrate.
     """
+
+    def render_data(self, event: RenderDataEvent) -> None:
+        """
+        Render generic data.
+        """
+
+    def render_detail_view(self, event: DetailViewEvent) -> None:
+        """
+        Render a key/value mapping in a "tabular" format.
+        """
+
+    def render_envs_list(self, event: EnvsListEvent) -> None:
+        """
+        Render a list of environments.
+        """
+
+    def render_spinner_start(self, event: SpinnerStartEvent) -> None:
+        """
+        Start a spinner.
+        """
+
+    def render_spinner_end(self, event: SpinnerEndEvent) -> None:
+        """
+        Stop the spinner started for a matching message.
+        """
+
+    def render_fetch_section_start(self, event: FetchSectionStartEvent) -> None:
+        """
+        Prepare for a fetch-and-extract section.
+        """
+
+    def render_fetch_task_start(self, event: FetchTaskStartEvent) -> None:
+        """
+        Register and display a new fetch task.
+        """
+
+    def render_fetch_task_progress(self, event: FetchTaskProgressEvent) -> None:
+        """
+        Update the progress of an in-flight fetch task.
+        """
+
+    def render_fetch_task_end(self, event: FetchTaskEndEvent) -> None:
+        """
+        Mark a fetch task as finished.
+        """
+
+    def render_fetch_section_end(self, event: FetchSectionEndEvent) -> None:
+        """
+        Clean up after a fetch-and-extract section.
+        """
 
     def render(self, data: Any, **kwargs) -> str:
         return str(data)
