@@ -16,6 +16,18 @@ if TYPE_CHECKING:
 
 from .base.context import context
 from .exceptions import CondaSystemExit, DryRunExit
+from .plugins.reporter_backends.events import (
+    DetailViewEvent,
+    EnvsListEvent,
+    FetchSectionEndEvent,
+    FetchSectionStartEvent,
+    FetchTaskEndEvent,
+    FetchTaskProgressEvent,
+    FetchTaskStartEvent,
+    RenderDataEvent,
+    SpinnerEndEvent,
+    SpinnerStartEvent,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -44,6 +56,26 @@ class CondaReporter:
             event: The event to dispatch.
         """
         match event:
+            case RenderDataEvent():
+                self._renderer.render_data(event)
+            case DetailViewEvent():
+                self._renderer.render_detail_view(event)
+            case EnvsListEvent():
+                self._renderer.render_envs_list(event)
+            case SpinnerStartEvent():
+                self._renderer.render_spinner_start(event)
+            case SpinnerEndEvent():
+                self._renderer.render_spinner_end(event)
+            case FetchSectionStartEvent():
+                self._renderer.render_fetch_section_start(event)
+            case FetchTaskStartEvent():
+                self._renderer.render_fetch_task_start(event)
+            case FetchTaskProgressEvent():
+                self._renderer.render_fetch_task_progress(event)
+            case FetchTaskEndEvent():
+                self._renderer.render_fetch_task_end(event)
+            case FetchSectionEndEvent():
+                self._renderer.render_fetch_section_end(event)
             case _:
                 logger.debug("No handler for %s; ignoring", type(event).__name__)
 

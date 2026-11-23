@@ -1,0 +1,4 @@
+### Enhancements
+
+* Route reporter events to `render_*` renderer methods in `conda.reporters.CondaReporter.send`. (#16409)
+* Implement the `render_*` event methods on `conda.plugins.reporter_backends.console.ConsoleReporterRenderer`. (#16409)

@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from conda.base.context import reset_context
 from conda.exceptions import CondaError
 from conda.plugins.reporter_backends.console import (
     ConsoleReporterRenderer,
@@ -15,6 +16,18 @@ from conda.plugins.reporter_backends.console import (
     QuietSpinner,
     Spinner,
     TQDMProgressBar,
+)
+from conda.plugins.reporter_backends.events import (
+    DetailViewEvent,
+    EnvsListEvent,
+    FetchSectionEndEvent,
+    FetchSectionStartEvent,
+    FetchTaskEndEvent,
+    FetchTaskProgressEvent,
+    FetchTaskStartEvent,
+    RenderDataEvent,
+    SpinnerEndEvent,
+    SpinnerStartEvent,
 )
 
 
@@ -350,3 +363,161 @@ def test_spinner_tty_returns_animated_spinner(monkeypatch):
     renderer = ConsoleReporterRenderer()
     spinner = renderer.spinner("test")
     assert isinstance(spinner, Spinner)
+
+
+@pytest.mark.parametrize(
+    "text,expected", [("hello", "hello\n"), ("hello\n", "hello\n")]
+)
+def test_render_data(capsys, text, expected):
+    ConsoleReporterRenderer().render_data(RenderDataEvent(data=text))
+
+    assert capsys.readouterr().out == expected
+
+
+def test_render_detail_view_matches_legacy(capsys):
+    data = {"one": "value_one", "three": "value_three"}
+    renderer = ConsoleReporterRenderer()
+
+    renderer.render_detail_view(DetailViewEvent(data=data))
+
+    assert capsys.readouterr().out == renderer.detail_view(data)
+
+
+@pytest.mark.parametrize("show_size", [False, True])
+def test_render_envs_list_matches_legacy(mocker, capsys, show_size):
+    mock_context = mocker.patch("conda.core.prefix_data.context")
+    mock_context.envs_dirs = ["/tmp"]
+    mocker.patch("conda.core.prefix_data.PrefixData.size", return_value=1024)
+    renderer = ConsoleReporterRenderer()
+
+    renderer.render_envs_list(
+        EnvsListEvent(prefixes=("/tmp/envs",), show_size=show_size)
+    )
+
+    expected = renderer.envs_list(["/tmp/envs"], show_size=show_size)
+    assert capsys.readouterr().out == expected
+
+
+@pytest.mark.parametrize(
+    "tty,expected_cls",
+    [(True, Spinner), (False, QuietSpinner)],
+)
+def test_render_spinner_events(monkeypatch, mocker, tty, expected_cls):
+    monkeypatch.setattr("conda.plugins.reporter_backends.console.is_tty", lambda: tty)
+    monkeypatch.setattr(
+        "conda.plugins.reporter_backends.console.term_dumb", lambda: False
+    )
+    enter = mocker.patch.object(expected_cls, "__enter__")
+    exit_ = mocker.patch.object(expected_cls, "__exit__")
+    renderer = ConsoleReporterRenderer()
+
+    renderer.render_spinner_start(SpinnerStartEvent(message="msg"))
+    assert isinstance(renderer._spinners["msg"], expected_cls)
+    enter.assert_called_once()
+
+    renderer.render_spinner_end(SpinnerEndEvent(message="msg", success=False))
+    exit_.assert_called_once_with(Exception, None, None)
+    assert not renderer._spinners
+
+
+def test_render_spinner_end_without_start_is_ignored():
+    ConsoleReporterRenderer().render_spinner_end(
+        SpinnerEndEvent(message="never-started", success=True)
+    )
+
+
+def test_render_spinner_success_exits_cleanly(monkeypatch, capsys):
+    monkeypatch.setattr("conda.plugins.reporter_backends.console.is_tty", lambda: False)
+    renderer = ConsoleReporterRenderer()
+
+    renderer.render_spinner_start(SpinnerStartEvent(message="Solving"))
+    renderer.render_spinner_end(SpinnerEndEvent(message="Solving", success=True))
+
+    assert capsys.readouterr().out == "Solving: ...working... done\n"
+
+
+@pytest.mark.parametrize(
+    "tty,expected_cls",
+    [(True, TQDMProgressBar), (False, QuietProgressBar)],
+)
+def test_render_fetch_events(monkeypatch, mocker, tty, expected_cls):
+    monkeypatch.setattr("conda.plugins.reporter_backends.console.is_tty", lambda: tty)
+    monkeypatch.setattr(
+        "conda.plugins.reporter_backends.console.term_dumb", lambda: False
+    )
+    mocker.patch.object(TQDMProgressBar, "_tqdm")
+    renderer = ConsoleReporterRenderer()
+
+    renderer.render_fetch_section_start(FetchSectionStartEvent())
+    renderer.render_fetch_task_start(
+        FetchTaskStartEvent(task_id=1, name="numpy", version="1.0", size=2048)
+    )
+    bar = renderer._fetch_bars[1]
+    assert isinstance(bar, expected_cls)
+    assert "numpy-1.0" in bar.description
+    assert "2 KB" in bar.description
+
+    update_to = mocker.spy(bar, "update_to")
+    renderer.render_fetch_task_progress(FetchTaskProgressEvent(task_id=1, fraction=0.5))
+    update_to.assert_called_once_with(0.5)
+
+    renderer.render_fetch_task_end(FetchTaskEndEvent(task_id=1, success=True))
+    assert update_to.call_args.args == (1,)
+
+    renderer.render_fetch_section_end(FetchSectionEndEvent(success=True))
+    assert not renderer._fetch_bars
+
+
+def test_render_fetch_task_end_failure_does_not_finish_bar(mocker):
+    renderer = ConsoleReporterRenderer()
+    renderer.render_fetch_task_start(
+        FetchTaskStartEvent(task_id=1, name="n", version="1")
+    )
+    update_to = mocker.spy(renderer._fetch_bars[1], "update_to")
+
+    renderer.render_fetch_task_end(FetchTaskEndEvent(task_id=1, success=False))
+
+    update_to.assert_not_called()
+
+
+def test_render_fetch_events_for_unknown_task_are_ignored():
+    renderer = ConsoleReporterRenderer()
+
+    renderer.render_fetch_task_progress(FetchTaskProgressEvent(task_id=9, fraction=1))
+    renderer.render_fetch_task_end(FetchTaskEndEvent(task_id=9, success=True))
+
+
+@pytest.mark.parametrize(
+    "tty,expected_start,expected_end",
+    [
+        (True, "\nDownloading and Extracting Packages:\n", "\r\n"),
+        (False, "\nDownloading and Extracting Packages: ...working...", " done\n"),
+    ],
+)
+def test_render_fetch_section_messages(
+    monkeypatch, capsys, tty, expected_start, expected_end
+):
+    monkeypatch.setattr("conda.plugins.reporter_backends.console.is_tty", lambda: tty)
+    monkeypatch.setattr(
+        "conda.plugins.reporter_backends.console.term_dumb", lambda: False
+    )
+    renderer = ConsoleReporterRenderer()
+
+    renderer.render_fetch_section_start(FetchSectionStartEvent())
+    start = capsys.readouterr().out
+    renderer.render_fetch_section_end(FetchSectionEndEvent(success=True))
+    end = capsys.readouterr().out
+
+    assert start == expected_start
+    assert end == expected_end
+
+
+def test_render_fetch_section_is_silent_when_quiet(monkeypatch, capsys):
+    monkeypatch.setenv("CONDA_QUIET", "true")
+    reset_context()
+    renderer = ConsoleReporterRenderer()
+
+    renderer.render_fetch_section_start(FetchSectionStartEvent())
+    renderer.render_fetch_section_end(FetchSectionEndEvent(success=True))
+
+    assert capsys.readouterr().out == ""

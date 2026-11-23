@@ -15,7 +15,19 @@ from conda.plugins.reporter_backends.console import (
     ConsoleReporterRenderer,
     TQDMProgressBar,
 )
-from conda.plugins.reporter_backends.events import Event
+from conda.plugins.reporter_backends.events import (
+    DetailViewEvent,
+    EnvsListEvent,
+    Event,
+    FetchSectionEndEvent,
+    FetchSectionStartEvent,
+    FetchTaskEndEvent,
+    FetchTaskProgressEvent,
+    FetchTaskStartEvent,
+    RenderDataEvent,
+    SpinnerEndEvent,
+    SpinnerStartEvent,
+)
 from conda.plugins.reporter_backends.json import JSONReporterRenderer
 from conda.reporters import (
     CondaReporter,
@@ -170,3 +182,28 @@ def test_get_reporter_uses_configured_backend(
     reset_context()
 
     assert isinstance(get_reporter()._renderer, renderer_type)
+
+
+@pytest.mark.parametrize(
+    "event,method",
+    [
+        (RenderDataEvent(data=1), "render_data"),
+        (DetailViewEvent(data={"a": "b"}), "render_detail_view"),
+        (EnvsListEvent(prefixes=()), "render_envs_list"),
+        (SpinnerStartEvent(message="m"), "render_spinner_start"),
+        (SpinnerEndEvent(message="m", success=True), "render_spinner_end"),
+        (FetchSectionStartEvent(), "render_fetch_section_start"),
+        (
+            FetchTaskStartEvent(task_id=1, name="n", version="1"),
+            "render_fetch_task_start",
+        ),
+        (FetchTaskProgressEvent(task_id=1, fraction=0.5), "render_fetch_task_progress"),
+        (FetchTaskEndEvent(task_id=1, success=True), "render_fetch_task_end"),
+        (FetchSectionEndEvent(success=True), "render_fetch_section_end"),
+    ],
+)
+def test_reporter_send_routes_event_to_renderer(mocker, event, method):
+    renderer = mocker.MagicMock()
+    CondaReporter(renderer).send(event)
+
+    getattr(renderer, method).assert_called_once_with(event)
