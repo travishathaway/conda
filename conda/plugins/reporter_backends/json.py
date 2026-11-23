@@ -27,6 +27,19 @@ from ..types import (
 if TYPE_CHECKING:
     from typing import Any
 
+    from ..reporter_backends.events import (
+        DetailViewEvent,
+        EnvsListEvent,
+        FetchSectionEndEvent,
+        FetchSectionStartEvent,
+        FetchTaskEndEvent,
+        FetchTaskProgressEvent,
+        FetchTaskStartEvent,
+        RenderDataEvent,
+        SpinnerEndEvent,
+        SpinnerStartEvent,
+    )
+
 
 class JSONProgressBar(ProgressBarBase):
     """
@@ -75,6 +88,50 @@ class JSONReporterRenderer(ReporterRendererBase):
     """
     Default implementation for JSON reporting in conda
     """
+
+    def __init__(self) -> None:
+        self._fetch_bars: dict[int, JSONProgressBar] = {}
+
+    def render_data(self, event: RenderDataEvent) -> None:
+        sys.stdout.write(json.dumps(event.data))
+
+    def render_detail_view(self, event: DetailViewEvent) -> None:
+        sys.stdout.write(json.dumps(event.data))
+
+    def render_envs_list(self, event: EnvsListEvent) -> None:
+        sys.stdout.write(json.dumps({"envs": list(event.prefixes)}))
+
+    def render_spinner_start(self, event: SpinnerStartEvent) -> None:
+        """
+        Spinners are intentionally silent in JSON output.
+        """
+
+    def render_spinner_end(self, event: SpinnerEndEvent) -> None:
+        """
+        Spinners are intentionally silent in JSON output.
+        """
+
+    def render_fetch_section_start(self, event: FetchSectionStartEvent) -> None:
+        self._fetch_bars.clear()
+
+    def render_fetch_task_start(self, event: FetchTaskStartEvent) -> None:
+        description = f"{event.name}-{event.version}" if event.name else ""
+        self._fetch_bars[event.task_id] = JSONProgressBar(description)
+
+    def render_fetch_task_progress(self, event: FetchTaskProgressEvent) -> None:
+        if (bar := self._fetch_bars.get(event.task_id)) is not None:
+            bar.update_to(event.fraction)
+
+    def render_fetch_task_end(self, event: FetchTaskEndEvent) -> None:
+        if (bar := self._fetch_bars.get(event.task_id)) is not None:
+            if event.success:
+                bar.finish()
+            bar.refresh()
+
+    def render_fetch_section_end(self, event: FetchSectionEndEvent) -> None:
+        for bar in self._fetch_bars.values():
+            bar.close()
+        self._fetch_bars.clear()
 
     def render(self, data: Any, **kwargs) -> str:
         return json.dumps(data)

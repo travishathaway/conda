@@ -1,0 +1,3 @@
+### Enhancements
+
+* Implement the `render_*` event methods on `conda.plugins.reporter_backends.json.JSONReporterRenderer`. (#16410)
