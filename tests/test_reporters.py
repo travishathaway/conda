@@ -10,12 +10,20 @@ import pytest
 
 from conda.base.context import context, reset_context
 from conda.exceptions import CondaSystemExit, DryRunExit
-from conda.plugins.reporter_backends.console import TQDMProgressBar
+from conda.plugins.reporter_backends.console import (
+    ConsoleReporterRenderer,
+    TQDMProgressBar,
+)
+from conda.plugins.reporter_backends.events import Event
+from conda.plugins.reporter_backends.json import JSONReporterRenderer
 from conda.reporters import (
+    CondaReporter,
     confirm_yn,
     get_progress_bar,
     get_progress_bar_context_manager,
+    get_reporter,
     render,
+    reset_reporter,
 )
 
 if TYPE_CHECKING:
@@ -117,3 +125,52 @@ def test_confirm_yn_no(monkeypatch: MonkeyPatch):
         assert not context.dry_run
 
         confirm_yn()
+
+
+def test_reporter_send_calls_renderer_handle(mocker):
+    renderer = mocker.MagicMock()
+    event = Event()
+
+    CondaReporter(renderer).send(event)
+
+    renderer.handle.assert_called_once_with(event)
+
+
+@pytest.mark.parametrize(
+    "renderer_type", [ConsoleReporterRenderer, JSONReporterRenderer]
+)
+def test_renderer_handle_ignores_unhandled_event(capsys, renderer_type):
+    CondaReporter(renderer_type()).send(Event())
+
+    assert not capsys.readouterr().out
+
+
+def test_get_reporter_is_singleton():
+    reset_reporter()
+    reporter = get_reporter()
+
+    assert isinstance(reporter, CondaReporter)
+    assert get_reporter() is reporter
+
+    reset_reporter()
+    assert get_reporter() is not reporter
+
+
+def test_reset_context_resets_reporter():
+    reporter = get_reporter()
+    reset_context()
+
+    assert get_reporter() is not reporter
+
+
+@pytest.mark.parametrize(
+    "console,renderer_type",
+    [("classic", ConsoleReporterRenderer), ("json", JSONReporterRenderer)],
+)
+def test_get_reporter_uses_configured_backend(
+    monkeypatch: MonkeyPatch, console, renderer_type
+):
+    monkeypatch.setenv("CONDA_CONSOLE", console)
+    reset_context()
+
+    assert isinstance(get_reporter()._renderer, renderer_type)

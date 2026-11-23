@@ -20,9 +20,51 @@ from .exceptions import CondaSystemExit, DryRunExit
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from .plugins.types import ProgressBarBase, SpinnerBase
+    from .plugins.reporter_backends.events import Event
+    from .plugins.types import ProgressBarBase, ReporterRendererBase, SpinnerBase
 
 logger = logging.getLogger(__name__)
+
+
+class CondaReporter:
+    """
+    Dispatches events to the active reporter renderer.
+    """
+
+    def __init__(self, renderer: ReporterRendererBase):
+        self._renderer = renderer
+
+    def send(self, event: Event) -> None:
+        """
+        Send an event to the renderer's
+        :meth:`~conda.plugins.types.ReporterRendererBase.handle` method.
+
+        Args:
+            event: The event to dispatch.
+        """
+        self._renderer.handle(event)
+
+
+_reporter: CondaReporter | None = None
+
+
+def get_reporter() -> CondaReporter:
+    """
+    Return the :class:`CondaReporter` for the currently configured reporter backend.
+    """
+    global _reporter
+    if _reporter is None:
+        backend = context.plugin_manager.get_reporter_backend(context.console)
+        _reporter = CondaReporter(backend.renderer())
+    return _reporter
+
+
+def reset_reporter() -> None:
+    """
+    Discard the cached :class:`CondaReporter` so it is rebuilt on next use.
+    """
+    global _reporter
+    _reporter = None
 
 
 @cache
